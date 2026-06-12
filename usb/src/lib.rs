@@ -2,11 +2,14 @@ mod devices;
 mod line6;
 mod dev_handler;
 mod endpoint;
+mod podgo;
 mod util;
 mod usb;
 mod midi_framer;
 mod podxt_framer;
 mod framer;
+mod current_preset;
+mod preset_parser;
 
 use log::{error, info};
 use anyhow::*;
@@ -156,6 +159,11 @@ pub fn usb_device_for_address(dev_addr: &str) -> Result<(impl MidiIn, impl MidiO
     }
 }
 
+pub fn usb_config_name_for_device(dev_name: &str) -> Option<&'static str> {
+    let usb_dev = crate::devices::find_device_by_name(dev_name)?;
+    usb_dev.config_name
+}
+
 pub fn usb_device_for_name(dev_name: &str) -> Result<(impl MidiIn, impl MidiOut)> {
     let mut devices = DEVICES.lock().unwrap();
     let _ = usb_enumerate_devices(&mut devices);
@@ -168,3 +176,10 @@ pub fn usb_device_for_name(dev_name: &str) -> Result<(impl MidiIn, impl MidiOut)
         }
     }
 }
+
+pub use podgo::preset_names as podgo_preset_names;
+pub use podgo::fetch_and_cache as podgo_preset_names_init;
+pub use current_preset::read_current_preset_inprocess as podgo_read_current_preset;
+pub use current_preset::get_current_preset_info;
+pub use current_preset::get_preset_version;
+pub use preset_parser::{PresetData, ModuleInfo, ParamValue, FootSwitchInfo, lookup_module_type, models_by_category, all_amp_models, all_cab_models, all_effect_models};

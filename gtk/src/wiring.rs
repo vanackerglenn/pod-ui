@@ -316,6 +316,8 @@ pub fn wire(controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &m
                 }
             });
             obj.dynamic_cast_ref::<gtk::Button>().map(|button| {
+                // Skip CheckButton and RadioButton (handled above)
+                if obj.dynamic_cast_ref::<gtk::CheckButton>().is_some() { return; }
                 // wire GtkButton
                 let controller = controller.clone();
                 {

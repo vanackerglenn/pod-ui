@@ -1,0 +1,192 @@
+POD Go USB Protocol Analysis
+=============================
+Date: 2026-06-11
+Device: Line6 POD Go (0e41:4247, family=0x0021, member=0x0007)
+Firmware: 2.1.0 (from UDI response: 02 01 00 00)
+
+=============================================================================
+1. USB Descriptor Summary
+=============================================================================
+
+Configuration: 1 interface, Self Powered
+Interface layout (5 interfaces total):
+
++-------+--------------------+--------+--------------------+-----------+
+| Iface | Class              | Sub    | Endpoints          | Purpose   |
++-------+--------------------+--------+--------------------+-----------+
+| 0     | 0xFF Vendor        | 0x00   | 0x81 IN (Bulk)     | PATCH     |
+|       | Specific           |        | 0x01 OUT (Bulk)    | DATA      |
+|       |                    |        | maxPacket=512      | CHANNEL   |
++-------+--------------------+--------+--------------------+-----------+
+| 1     | 1 Audio            | 1 Ctrl | 0 (control only)   | Audio     |
+|       |                    |        |                    | config    |
++-------+--------------------+--------+--------------------+-----------+
+| 2     | 1 Audio            | 2 Str  | Isochronous        | 4ch PCM   |
+|       |                    |        | alt=1: EP out      | audio I/O |
++-------+--------------------+--------+--------------------+-----------+
+| 3     | 1 Audio            | 2 Str  | (isochronous)      | Audio     |
++-------+--------------------+--------+--------------------+-----------+
+| 4     | 1 Audio            | 3 MIDI | 0x82 IN (Bulk)     | PC/CC     |
+|       |                    |        | 0x02 OUT (Bulk)    | MIDI      |
++-------+--------------------+--------+--------------------+-----------+
+
+Key: "PATCH DATA CHANNEL" = Interface 0 (Vendor Specific).
+      "MIDI CHANNEL" = Interface 4 (USB Audio/MIDI Streaming).
+
+=============================================================================
+2. What Works (Interface 4 - MIDI)
+=============================================================================
+
+- Program Change (PC) messages: bidirectional. App sends PC, device responds.
+  USB-MIDI framing: Pod Go uses standard USB MIDI (class=1, sub=3) with Bulk
+  endpoints. UsbMidiFramer is selected automatically.
+
+- Control Change (CC) messages: NOT TESTED (see CC discovery below).
+
+- Device Identification: Universal Device Inquiry (f0 7e 7f 06 01 f7)
+  succeeds. Response: family=0x0021, member=0x0007, ver=[02,01,00,00].
+
+=============================================================================
+3. What Does NOT Work (SysEx - Interface 4)
+=============================================================================
+
+All SysEx dump requests were tested via the MIDI interface (interface 4).
+None succeeded:
+
+  Command                                        Bytes                    Result
+  ---------------------------------------------  -----------------------  ----------
+  UDI (standard)                                 f0 7e 7f 06 01 f7       Success
+  Legacy POD 2.0 EB dump req                     f0 00 01 0c 01 00 01 f7 NAK (7e 00)
+  Legacy all programs dump req                   f0 00 01 0c 01 00 02 f7 NAK (7f 00)
+  Legacy patch dump req program 0                f0 00 01 0c 01 00 00 00 No response
+  Legacy patch dump req program 1                f0 00 01 0c 01 00 00 01 No response
+  XT-family EB dump req                          f0 00 01 0c 03 75 f7    NAK (7f 00)
+  Func byte 0x00, cmd 0x01                       f0 00 01 0c 00 00 01 f7 NAK (7f 00)
+  Func byte 0x02, cmd 0x01                       f0 00 01 0c 02 00 01 f7 NAK (7f 00)
+
+Key observations:
+- Pod Go echoes function byte 0x01 in ALL responses, regardless of request.
+  Even XT-family (0x03) requests get responses with func byte 0x01.
+- NAK codes: 7e 00 and 7f 00 for different command codes.
+- Sub-command 0x00 (patch dump) gets NO response = silently ignored.
+- Sub-commands 0x01 and 0x02 get NAK.
+- Conclusion: Pod Go supports Line6 SysEx header (00 01 0c) at function byte
+  0x01 (legacy family), but does NOT support any known dump request.
+
+=============================================================================
+4. The Patch Data Challenge (Interface 0 - Vendor Specific)
+=============================================================================
+
+The Pod Go Editor software communicates with the device through INTERFACE 0
+(Vendor Specific, class 0xFF), NOT through the MIDI interface.
+
+Interface 0 endpoints:
+  - 0x81 IN (Bulk, 512 bytes max packet)
+  - 0x01 OUT (Bulk, 512 bytes max packet)
+
+The current pod-ui app claims interface 0 (along with all other interfaces)
+but does NOT use its endpoints. It only reads/writes from the MIDI endpoints
+(0x82 IN / 0x02 OUT on interface 4).
+
+To add patch loading support, you would need to:
+
+  a) Open a second connection OR add read/write support for EP 0x81/0x01
+     within the existing device open (the app already claims iface 0).
+
+  b) Reverse-engineer the vendor-specific protocol by USB-sniffing the
+     Pod Go Editor application.
+
+The current devices.rs entry for Pod Go:
+  UsbDevice {
+      id: id!(0x0e41, 0x4247), name: "POD Go".into(),
+      alt_setting: 0, read_ep: 0x82, write_ep: 0x02,
+      transfer_type: TransferType::Bulk,
+      config_name: Some("POD Go")
+  },
+
+=============================================================================
+5. Recommended Reverse Engineering Approach
+=============================================================================
+
+Step 1: Capture Pod Go Editor USB traffic
+   - On Linux host: run `sudo modprobe usbmon` then Wireshark on usbmonX.
+   - Or: pass Pod Go USB device to a Windows VM (VirtualBox/Virt-Manager),
+        run Pod Go Editor in the VM, capture USB from the host.
+
+Step 2: Identify patch read/write operations
+   - Look for Bulk OUT transfers to EP 0x01 (requests from Editor to device).
+   - Look for Bulk IN transfers from EP 0x81 (responses/data from device).
+   - Filter by interface number 0 or endpoint address.
+
+Step 3: Decode the protocol
+   - Likely format: <command byte> [<payload...>]
+   - Possible command types: READ_PATCH, WRITE_PATCH, READ_PROGRAM_LIST,
+     WRITE_PROGRAM_LIST, GET_PARAM, SET_PARAM, etc.
+   - Payload likely uses 7-bit clean encoding (MSB clear) or raw bytes.
+
+Step 4: Implement in Rust
+   - Add a second framer/endpoint pair for interface 0.
+   - Create a protocol handler that sends/receives on EP 0x81/0x01.
+   - Parse patch data into the EditBuffer format used by pod-ui.
+
+=============================================================================
+6. Control Change (CC) Discovery via MIDI
+=============================================================================
+
+When the generic handler receives a CC with an unknown CC number, it logs:
+  WARN  Control for CC={num} not defined!
+
+To discover Pod Go's CC assignments:
+  1. Run the app with RUST_LOG=debug.
+  2. Turn each physical knob on Pod Go while watching the log.
+  3. Note the CC number and the knob's label.
+  4. Update config.rs with the correct CC mappings.
+
+Current config.rs CC numbers are GUESSES copied from other POD devices.
+They should be treated as entirely wrong until verified.
+
+=============================================================================
+7. Config Reference
+=============================================================================
+
+File: mod-podgo/src/config.rs
+  family: 0x0021, member: 0x0007  (confirmed via UDI)
+  Device flags: DeviceFlags::empty()  (no SysEx/flags needed)
+  out_cc_edit_buffer_dump_req: []    (not used - Pod Go doesn't support)
+  in_cc_edit_buffer_dump_req: []     (not used)
+
+File: mod-podgo/src/handler.rs
+  new_device_handler: sends UDI + PC 0
+  load_handler: sends PC for Current/Program buffers, ignores EditBuffer/All
+  pc_handler: sends PC directly, skips generic handler
+  midi_pc_in_handler: NOT overridden (generic handles incoming PC)
+
+File: usb/src/devices.rs
+  Pod Go entry: iface=4, alt=0, EP 0x82/0x02, Bulk, config_name="POD Go"
+  find_device_by_name uses prefix match (serial + address appended)
+
+=============================================================================
+8. Open Questions
+=============================================================================
+
+a) What vendor-specific protocol does interface 0 use?
+   - Need USB sniffing of Pod Go Editor to determine.
+
+b) Can Pod Go send/receive patch data via MIDI SysEx at all?
+   - All tested dump commands failed. But there might be a correct command
+     format we haven't tried (e.g., Helix/HX family, different device ID).
+
+c) Does Pod Go support MIDI CC for parameter control?
+   - CC messages are logged but no knobs have been physically tested yet.
+
+d) What CC numbers does Pod Go use?
+   - Need to turn knobs and capture the log output.
+
+e) What is the patch data format (nibblized? raw bytes? packed?)
+   - Unknown, depends on the protocol discovered in (a).
+
+f) Does the Pod Go Editor use any USB control transfers (setup packets) or
+   solely bulk transfers on interface 0?
+   - Need USB sniffing to determine.
+
+=============================================================================

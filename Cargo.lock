@@ -1149,15 +1149,6 @@ dependencies = [
 
 [[package]]
 name = "multimap"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70db9248a93dc36a36d9a47898caa007a32755c7ad140ec64eeeb50d5a730631"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "multimap"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "defc4c55412d89136f966bbb339008b474350e5e6e78d2714439c386b3137a03"
@@ -1411,7 +1402,7 @@ dependencies = [
  "glib",
  "gtk",
  "log",
- "multimap 0.10.0",
+ "multimap",
  "pod-core",
  "tokio",
 ]
@@ -1436,6 +1427,7 @@ dependencies = [
  "pod-mod-bassxt",
  "pod-mod-pocket",
  "pod-mod-pod2",
+ "pod-mod-podgo",
  "pod-mod-xt",
  "pod-usb",
  "regex",
@@ -1493,6 +1485,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-mod-podgo"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "hibitset",
+ "log",
+ "maplit",
+ "once_cell",
+ "pod-core",
+ "pod-gtk",
+ "pod-mod-pod2",
+ "pod-mod-xt",
+ "pod-usb",
+ "tokio",
+]
+
+[[package]]
 name = "pod-mod-xt"
 version = "0.0.0"
 dependencies = [
@@ -1500,7 +1509,7 @@ dependencies = [
  "hibitset",
  "log",
  "maplit",
- "multimap 0.9.0",
+ "multimap",
  "once_cell",
  "pod-core",
  "pod-gtk",

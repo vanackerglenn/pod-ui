@@ -10,6 +10,7 @@ mod imp {
     use anyhow::*;
     use core::result::Result::Ok;
     use log::warn;
+    use pod_core::config::configs;
     use pod_core::midi::Channel;
     use pod_core::midi_io;
     use pod_core::midi_io::{AutodetectResult, MidiIn, MidiOut};
@@ -50,12 +51,40 @@ mod imp {
                     continue;
                 }
             };
+
+            // First try SysEx-based detection (for devices that support it)
             let res = midi_io::autodetect_with_ports(
                 vec![Box::new(in_port)], vec![Box::new(out_port)], Some(Channel::num(0))
             ).await;
             if res.is_ok() {
                 return res;
             }
+
+            // If SysEx failed, try to match by USB device config_name
+            let config_name = pod_usb::usb_config_name_for_device(&name);
+            if let Some(cfg_name) = config_name {
+                let config = configs().iter().find(|c| c.name == cfg_name);
+                if let Some(cfg) = config {
+                    warn!("USB device {name:?} matched by config: {cfg_name} (no SysEx response)");
+                    // Re-open the device since the original ports were consumed
+                    match usb_open_name(&name) {
+                        Ok((in_port, out_port)) => {
+                            return Ok(AutodetectResult {
+                                in_port: Box::new(in_port),
+                                out_port: Box::new(out_port),
+                                channel: Channel::num(0),
+                                config: cfg,
+                            });
+                        }
+                        Err(e) => {
+                            warn!("Failed to re-open USB device {name:?}: {e}");
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            warn!("USB auto-detect failed for device {name:?}");
         }
 
         bail!("USB auto-detect failed");

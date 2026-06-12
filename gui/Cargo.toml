@@ -30,6 +30,7 @@ pod-core = { path = "../core" }
 pod-gtk = { path = "../gtk" }
 pod-mod-pod2 = { path = "../mod-pod2" }
 pod-mod-pocket = { path = "../mod-pocket" }
+pod-mod-podgo = { path = "../mod-podgo" }
 pod-mod-xt = { path = "../mod-xt" }
 pod-mod-bassxt = { path = "../mod-bassxt" }
 pod-usb = { path = "../usb", optional = true }

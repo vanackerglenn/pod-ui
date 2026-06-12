@@ -71,11 +71,26 @@ pub struct UsbMidiOutFramer;
 impl OutFramer for UsbMidiOutFramer {
     fn encode_outgoing(&self, bytes: &[u8]) -> Vec<Vec<u8>> {
         match bytes[0] {
-            0xb0 => vec![
+            0x80..=0x8f => vec![
+                [ &[0x08], bytes ].concat()
+            ],
+            0x90..=0x9f => vec![
+                [ &[0x09], bytes ].concat()
+            ],
+            0xa0..=0xaf => vec![
+                [ &[0x0a], bytes ].concat()
+            ],
+            0xb0..=0xbf => vec![
                 [ &[0x0b], bytes ].concat()
             ],
-            0xc0 => vec![
+            0xc0..=0xcf => vec![
                 [ &[0x0c], bytes, &[0x00] ].concat()
+            ],
+            0xd0..=0xdf => vec![
+                [ &[0x0d], bytes, &[0x00] ].concat()
+            ],
+            0xe0..=0xef => vec![
+                [ &[0x0e], bytes, &[0x00] ].concat()
             ],
             0xf0 => {
                 bytes.chunks(3).map(|b| {

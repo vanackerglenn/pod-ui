@@ -358,6 +358,7 @@ fn wire_ui_controls(
         .data(app_event_tx.clone())
         .on("program")
         .run(move |v, _, origin, app_event_tx| {
+            if v >= 1000 { return } // hidden program button, no PC events
             let origin = match Origin::try_from(origin) {
                 Ok(v) => v,
                 Err(err) => {
@@ -365,7 +366,6 @@ fn wire_ui_controls(
                     return;
                 }
             };
-            if v >= 1000 { return } // hidden program button, no PC events
             let e = ProgramChangeEvent { program: v.into(), origin };
             app_event_tx.send_or_warn(AppEvent::ProgramChange(e));
         })
@@ -595,6 +595,7 @@ async fn main() -> Result<()> {
 
     register_module(pod_mod_pod2::module())?;
     register_module(pod_mod_pocket::module())?;
+    register_module(pod_mod_podgo::module())?;
     register_module(pod_mod_xt::module())?;
     register_module(pod_mod_bassxt::module())?;
 

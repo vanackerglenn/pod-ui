@@ -121,10 +121,6 @@ impl DeviceInner {
         let kernel_state = Self::detach_kernel_driver(&handle)
             .or_else(|e| {
                 warn!("Failed to detach kernel driver when opening device: {e}");
-                // FOR TESTING: This is probably not a good idea, but let's try
-                // to continue if we failed to get active config during detach,
-                // we'll assume that nothing is configured and no kernel drivers
-                // are attached to any interfaces!
                 Ok::<_, io::Error>(DevOpenState { config: 0, attach: vec![] })
             })?;
 
@@ -137,6 +133,14 @@ impl DeviceInner {
         }).ok();
 
         Self::claim_interfaces(&handle, &kernel_state);
+
+        // For POD Go, release interface 0 so the handler can claim it
+        // later (via an independent handle) to fetch preset names.
+        if let Ok(desc) = handle.device().device_descriptor() {
+            if desc.vendor_id() == 0x0e41 && desc.product_id() == 0x4247 {
+                handle.release_interface(0).ok();
+            }
+        }
 
         if read_ep.setting != 0 {
             handle.set_alternate_setting(read_ep.iface, read_ep.setting).map_err(|e| {
