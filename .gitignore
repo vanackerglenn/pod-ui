@@ -12,3 +12,4 @@
 /mod-podgo/examples/
 /mod-podgo/*.txt
 /mod-podgo/*.md
+/mod-podgo/src/docs/*.pdf
