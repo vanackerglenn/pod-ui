@@ -10,8 +10,7 @@ use pod_core::model::AbstractControl;
 use pod_core::store::Store;
 use Origin::{MIDI, UI};
 
-use crate::config::{STOMP_CONFIG, MOD_CONFIG, DELAY_CONFIG, REVERB_MODELS};
-use crate::model::ConfigAccess;
+use crate::config::{AMP_MODELS, CAB_MODELS, WAH_MODELS, EQ_MODELS, FX_MODELS, MAX_FX_PARAMS};
 
 pub struct PodGoHandler;
 
@@ -165,75 +164,137 @@ fn sync_controller_from_preset(
     preset: &pod_usb::PresetData,
 ) {
     for m in &preset.modules {
-        info!("sync: module '{}' category '{}' slot {} params={:?}",
-              m.name, m.category, m.slot, m.parameters);
-        match m.category.as_str() {
-            "Distortion" | "Distortion (Legacy)" | "Dynamic" | "EQ" | "Filter"
-            | "Wah" | "Pitch/Synth" | "Vol/Pan" => {
-                if let Some(idx) = STOMP_CONFIG.iter().position(|c| *c.name() == m.name) {
-                    info!("sync: {} -> stomp_select idx {}", m.name, idx);
-                    store_set(controller, "stomp_select", idx as u16);
-                } else {
-                    warn!("sync: {} not found in STOMP_CONFIG", m.name);
+        info!("sync: module '{}' category '{}' slot {} bypassed={} params={:?}",
+              m.name, m.category, m.slot, m.bypassed, m.parameters);
+    }
+
+    // Clear managed blocks first so anything absent from this preset doesn't
+    // keep showing stale values from a previously-loaded preset.
+    reset_managed_blocks(controller);
+
+    // Walk the chain in slot order: fixed blocks go to their dedicated
+    // controls; everything else is an assignable effect that fills the next
+    // free FX slot (POD Go has four).
+    let mut modules: Vec<&pod_usb::ModuleInfo> = preset.modules.iter().collect();
+    modules.sort_by_key(|m| m.slot);
+
+    let mut next_fx_slot = 0usize; // 0-based; slots 0..=3 map to fx1..fx4
+    for m in &modules {
+        let enable = if m.bypassed { 0u16 } else { 1u16 };
+
+        if pod_usb::is_fixed_block_category(&m.category, &m.name) {
+            match m.category.as_str() {
+                "Amp" => {
+                    set_select(controller, "amp_select",
+                               AMP_MODELS.iter().position(|a| a.name == m.name), &m.name);
+                    store_set(controller, "amp_enable", enable);
                 }
-                if let Some(entry) = STOMP_CONFIG.iter().find(|c| *c.name() == m.name) {
-                    sync_params(controller, entry.labels(), "stomp", &m.parameters);
+                "Cab" => {
+                    set_select(controller, "cab_select",
+                               CAB_MODELS.iter().position(|n| *n == m.name), &m.name);
+                }
+                "Wah" => {
+                    set_select(controller, "wah_select",
+                               WAH_MODELS.iter().position(|n| *n == m.name), &m.name);
+                    store_set(controller, "wah_enable", enable);
+                }
+                "Vol/Pan" => {
+                    // Fixed Volume pedal block. No model selector; its level is
+                    // a parameter. Just reflect the on/off state for now.
+                    store_set(controller, "volume_enable", enable);
+                }
+                "EQ" => {
+                    // Dedicated Preset EQ block (model selector for the EQ type).
+                    set_select(controller, "preset_eq_select",
+                               EQ_MODELS.iter().position(|n| *n == m.name), &m.name);
+                    store_set(controller, "preset_eq_enable", enable);
+                }
+                _ => {
+                    // FX Loop / Send-Return.
+                    store_set(controller, "fx_loop_enable", enable);
                 }
             }
-            "Reverb" => {
-                    if let Some(idx) = REVERB_MODELS.iter().position(|n| *n == m.name) {
-                    info!("sync: {} -> reverb_select idx {}", m.name, idx);
-                    store_set(controller, "reverb_select", idx as u16);
-                } else {
-                    warn!("sync: {} not found in REVERB_MODELS", m.name);
-                }
-            }
-            "Modulation" => {
-                if let Some(idx) = MOD_CONFIG.iter().position(|c| *c.name() == m.name) {
-                    info!("sync: {} -> mod_select idx {}", m.name, idx);
-                    store_set(controller, "mod_select", idx as u16);
-                } else {
-                    warn!("sync: {} not found in MOD_CONFIG", m.name);
-                }
-                if let Some(entry) = MOD_CONFIG.iter().find(|c| *c.name() == m.name) {
-                    sync_params(controller, entry.labels(), "mod", &m.parameters);
-                }
-            }
-            "Delay" => {
-                if let Some(idx) = DELAY_CONFIG.iter().position(|c| *c.name() == m.name) {
-                    info!("sync: {} -> delay_select idx {}", m.name, idx);
-                    store_set(controller, "delay_select", idx as u16);
-                } else {
-                    warn!("sync: {} not found in DELAY_CONFIG", m.name);
-                }
-                if let Some(entry) = DELAY_CONFIG.iter().find(|c| *c.name() == m.name) {
-                    sync_params(controller, entry.labels(), "delay", &m.parameters);
-                }
-            }
-            cat => {
-                warn!("sync: unhandled category '{}' for module '{}'", cat, m.name);
-            }
+            continue;
+        }
+
+        // Assignable effect block -> next free FX slot.
+        if next_fx_slot >= 4 {
+            warn!("sync: more than 4 FX blocks; '{}' (slot {}) not shown", m.name, m.slot);
+            continue;
+        }
+        let n = next_fx_slot + 1;
+        next_fx_slot += 1;
+        set_select(controller, &format!("fx{}_select", n),
+                   FX_MODELS.iter().position(|fm| fm.name == m.name), &m.name);
+        store_set(controller, &format!("fx{}_enable", n), enable);
+        sync_fx_params(controller, n, &m.name, &m.parameters);
+    }
+}
+
+/// Reset all handler-managed block controls to a neutral state. Called before
+/// syncing a preset so blocks not present in it don't display leftover values
+/// from a previously-loaded preset.
+fn reset_managed_blocks(controller: &Arc<Mutex<Controller>>) {
+    // Fixed-block enables + the wah selector.
+    const FIXED: &[&str] = &[
+        "wah_select", "wah_enable",
+        "volume_enable", "fx_loop_enable",
+        "preset_eq_select", "preset_eq_enable",
+    ];
+    for c in FIXED {
+        store_set(controller, c, 0);
+    }
+    // Every FX slot's selector, enable and all param sliders.
+    for n in 1..=4 {
+        store_set(controller, &format!("fx{}_select", n), 0);
+        store_set(controller, &format!("fx{}_enable", n), 0);
+        for p in 1..=MAX_FX_PARAMS {
+            store_set(controller, &format!("fx{}_param{}", n, p), 0);
         }
     }
 }
 
-fn sync_params(
+fn set_select(controller: &Arc<Mutex<Controller>>, control: &str, idx: Option<usize>, name: &str) {
+    match idx {
+        Some(idx) => {
+            info!("sync: {} -> {} idx {}", name, control, idx);
+            store_set(controller, control, idx as u16);
+        }
+        None => warn!("sync: '{}' not found for control '{}'", name, control),
+    }
+}
+
+/// Map a parsed FX block's positional params onto its slot's `fxN_paramK`
+/// controls, using the model's `ParamSpec` to decide which positions are
+/// surfaced. Param values are already in device order; only those the spec
+/// names (and that fit a 0..=127 percent control) are shown — unknown models
+/// have an empty spec and therefore show no params yet.
+fn sync_fx_params(
     controller: &Arc<Mutex<Controller>>,
-    labels: &std::collections::HashMap<String, String>,
-    prefix: &str,
+    slot: usize,
+    model_name: &str,
     params: &[pod_usb::ParamValue],
 ) {
+    let Some(model) = FX_MODELS.iter().find(|m| m.name == model_name) else {
+        return;
+    };
     for (i, pv) in params.iter().enumerate() {
-        let key = format!("{}_param{}", prefix, i + 2);
-        if !labels.contains_key(&key) {
+        if i >= MAX_FX_PARAMS || model.params.label(i).is_none() {
             continue;
         }
+        let key = format!("fx{}_param{}", slot, i + 1);
+        // The preset stores most params normalized to 0.0..=1.0, which map
+        // directly onto the 0..=127 percent controls. Native-unit params
+        // (Hz/dB/counts) don't fit those controls yet, so skip them for now.
         let value: u16 = match pv {
-            pod_usb::ParamValue::Int(v) => *v as u16,
-            pod_usb::ParamValue::Float(f) => (f.max(0.0).min(100.0) * 127.0 / 100.0) as u16,
-            pod_usb::ParamValue::Bool(true) => 127,
-            pod_usb::ParamValue::Bool(false) => 0,
-            pod_usb::ParamValue::Raw(_) => 0,
+            pod_usb::ParamValue::Float(f) if (0.0..=1.0).contains(f) => {
+                (*f * 127.0).round() as u16
+            }
+            pod_usb::ParamValue::Bool(b) => if *b { 127 } else { 0 },
+            other => {
+                info!("sync: {} = {:?} not a 0..1 value; needs a dedicated control, skipped", key, other);
+                continue;
+            }
         };
         store_set(controller, &key, value);
     }

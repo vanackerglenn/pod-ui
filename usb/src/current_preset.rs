@@ -163,6 +163,16 @@ pub fn read_current_preset_inprocess() -> Option<PresetData> {
 
     let _ = handle.release_interface(0);
 
+    // Optional diagnostic: set PODGO_DUMP=1 to write the raw preset bytes for
+    // offline MessagePack analysis (used while reverse-engineering the format).
+    if std::env::var("PODGO_DUMP").is_ok() {
+        let path = std::env::temp_dir().join("podgo_preset.bin");
+        match std::fs::write(&path, &all_data) {
+            Ok(_) => info!("PODGO_DUMP: wrote {} raw preset bytes to {}", all_data.len(), path.display()),
+            Err(e) => warn!("PODGO_DUMP: failed to write raw preset dump: {e}"),
+        }
+    }
+
     // Parse modules and snapshots from binary data
     let preset = preset_parser::parse_preset_data(&all_data);
     if preset.modules.is_empty() {

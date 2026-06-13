@@ -1,17 +1,23 @@
+use std::rc::Rc;
+use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 use pod_core::edit::EditBuffer;
 use pod_core::model::Config;
 use pod_gtk::prelude::*;
-use gtk::{Builder, Widget};
+use gtk::{Builder, Widget, Orientation};
 use pod_core::handler::BoxedHandler;
-use pod_core::controller::Controller;
+use pod_core::controller::*;
 use pod_gtk::logic::LogicBuilder;
-use pod_mod_pod2::wiring::{wire_name_change, wire_14bit};
+use pod_mod_pod2::wiring::wire_name_change;
 
 use crate::config;
 use crate::handler::PodGoHandler;
-use crate::model::{ConfigAccess, StompConfig, ModConfig, DelayConfig};
-use crate::config::{STOMP_CONFIG, MOD_CONFIG, DELAY_CONFIG};
+use crate::config::{FX_MODELS, MAX_FX_PARAMS};
+use crate::model::{ParamDef, ParamKind};
+
+/// Setter that pushes a controller value into a dynamically-built param widget
+/// (signal-guarded so it doesn't echo back to the controller).
+type Setter = Rc<dyn Fn(u16)>;
 
 pub struct PodGoModule;
 
@@ -68,23 +74,22 @@ impl Interface for PodGoInterface {
             let ctrl = controller.lock().unwrap();
             init_combo(&ctrl, &self.objects, "amp_select", &config.amp_models, |amp| amp.name.as_str())?;
             init_combo(&ctrl, &self.objects, "cab_select", &config.cab_models, |s| s.as_str())?;
-            init_combo(&ctrl, &self.objects, "reverb_select", &config.effects, |eff| eff.name.as_str())?;
-            init_combo(&ctrl, &self.objects, "delay_select", &*DELAY_CONFIG, |c| c.name.as_str())?;
-            init_combo(&ctrl, &self.objects, "mod_select", &*MOD_CONFIG, |c| c.name.as_str())?;
-            init_combo(&ctrl, &self.objects, "stomp_select", &*STOMP_CONFIG, |c| c.name.as_str())?;
             init_combo(&ctrl, &self.objects, "wah_select", &crate::config::WAH_MODELS, |s| s.as_str())?;
+            init_combo(&ctrl, &self.objects, "preset_eq_select", &crate::config::EQ_MODELS, |s| s.as_str())?;
+            // The four generic FX slots all share the full FX model catalog.
+            for n in 1..=4 {
+                init_combo(&ctrl, &self.objects, &format!("fx{}_select", n),
+                           &*FX_MODELS, |m| m.name.as_str())?;
+            }
         }
 
         pod_gtk::wire(controller.clone(), &self.objects, callbacks)?;
 
-        wire_stomp_select(&*STOMP_CONFIG, controller.clone(), &self.objects, callbacks)?;
-        wire_mod_select(&*MOD_CONFIG, controller.clone(), &self.objects, callbacks)?;
-        wire_delay_select(&*DELAY_CONFIG, controller.clone(), &self.objects, callbacks)?;
-
-        wire_14bit(controller.clone(), &self.objects, callbacks,
-                   "mod_speed", "mod_speed:msb", "mod_speed:lsb", true)?;
-        wire_14bit(controller.clone(), &self.objects, callbacks,
-                   "delay_time", "delay_time:msb", "delay_time:lsb", true)?;
+        // Each FX slot builds its param widgets dynamically to match the
+        // selected model (count + widget type per the model's ParamSpec).
+        for n in 1..=4 {
+            wire_fx_slot(n, controller.clone(), &self.objects, callbacks)?;
+        }
 
         wire_name_change(edit, config, &self.objects, callbacks)?;
 
@@ -96,69 +101,142 @@ impl Interface for PodGoInterface {
     }
 }
 
-fn wire_dynamic_select<T: ConfigAccess>(
-    select_name: &str, configs: &'static [T],
+/// Build one param row (label + a widget chosen by the param's kind) bound to
+/// the `ctrl_name` controller value. Returns the row widget and a guarded
+/// setter that pushes a controller value into the widget.
+fn build_param_row(
+    def: &ParamDef, ctrl_name: &str, controller: &Arc<Mutex<Controller>>,
+) -> (Widget, Setter) {
+    let row = gtk::Box::new(Orientation::Horizontal, 8);
+    let label = gtk::Label::new(Some(&def.name));
+    label.set_width_request(90);
+    label.set_xalign(1.0);
+    row.pack_start(&label, false, false, 0);
+
+    let updating = Rc::new(Cell::new(false));
+    let name = ctrl_name.to_string();
+
+    let setter: Setter = match &def.kind {
+        ParamKind::Bool => {
+            let check = gtk::CheckButton::new();
+            check.set_hexpand(true);
+            {
+                let controller = controller.clone(); let name = name.clone(); let upd = updating.clone();
+                check.connect_toggled(move |c| {
+                    if upd.get() { return; }
+                    controller.lock().unwrap().set(&name, if c.is_active() { 127 } else { 0 }, StoreOrigin::UI);
+                });
+            }
+            row.pack_start(&check, true, true, 0);
+            let upd = updating.clone();
+            Rc::new(move |v: u16| { upd.set(true); check.set_active(v > 63); upd.set(false); })
+        }
+        ParamKind::Enum if !def.options.is_empty() => {
+            let combo = gtk::ComboBoxText::new();
+            combo.set_hexpand(true);
+            for opt in &def.options { combo.append_text(opt); }
+            {
+                let controller = controller.clone(); let name = name.clone(); let upd = updating.clone();
+                combo.connect_changed(move |c| {
+                    if upd.get() { return; }
+                    if let Some(i) = c.active() {
+                        controller.lock().unwrap().set(&name, i as u16, StoreOrigin::UI);
+                    }
+                });
+            }
+            row.pack_start(&combo, true, true, 0);
+            let upd = updating.clone();
+            Rc::new(move |v: u16| { upd.set(true); combo.set_active(Some(v as u32)); upd.set(false); })
+        }
+        // numeric kinds (percent/hz/db/ms/time/semitones/int/enum-without-options/unknown)
+        _ => {
+            let adj = gtk::Adjustment::new(0.0, 0.0, 127.0, 1.0, 8.0, 0.0);
+            let scale = gtk::Scale::new(Orientation::Horizontal, Some(&adj));
+            scale.set_hexpand(true);
+            scale.set_value_pos(gtk::PositionType::Right);
+            scale.set_digits(0);
+            {
+                let controller = controller.clone(); let name = name.clone(); let upd = updating.clone();
+                adj.connect_value_changed(move |a| {
+                    if upd.get() { return; }
+                    controller.lock().unwrap().set(&name, a.value() as u16, StoreOrigin::UI);
+                });
+            }
+            row.pack_start(&scale, true, true, 0);
+            let upd = updating.clone();
+            Rc::new(move |v: u16| { upd.set(true); adj.set_value(v as f64); upd.set(false); })
+        }
+    };
+
+    (row.upcast::<Widget>(), setter)
+}
+
+/// Rebuild a slot's param container to match `spec` exactly (one widget per
+/// param; positions with an empty name are skipped but keep index alignment).
+/// `arc` is captured by the widgets' edit-time handlers; `ctrl` is the
+/// already-locked controller used to seed initial values (do NOT re-lock — the
+/// callback that calls this already holds the controller lock).
+fn rebuild_params(
+    slot: usize, pbox: &gtk::Box, spec: &crate::model::ParamSpec,
+    arc: &Arc<Mutex<Controller>>, ctrl: &Controller,
+) -> Vec<Option<Setter>> {
+    for child in pbox.children() { pbox.remove(&child); }
+    let mut setters: Vec<Option<Setter>> = Vec::with_capacity(spec.len());
+    for i in 0..spec.len().min(MAX_FX_PARAMS) {
+        let def = spec.param(i).unwrap();
+        if def.name.is_empty() {
+            setters.push(None);
+            continue;
+        }
+        let ctrl_name = format!("fx{}_param{}", slot, i + 1);
+        let (row, setter) = build_param_row(def, &ctrl_name, arc);
+        pbox.add(&row);
+        setters.push(Some(setter));
+    }
+    pbox.show_all();
+    // seed widgets from the already-locked controller (guarded setters won't
+    // echo back, so no re-lock happens via the value-changed signal)
+    for (i, setter) in setters.iter().enumerate() {
+        if let Some(set) = setter {
+            let v = ctrl.get(&format!("fx{}_param{}", slot, i + 1)).unwrap_or(0);
+            set(v);
+        }
+    }
+    setters
+}
+
+/// Wire one FX slot: on model-select, rebuild its param widgets to match the
+/// model; per-param callbacks keep the widgets in sync with controller values.
+fn wire_fx_slot(
+    slot: usize,
     controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &mut Callbacks,
 ) -> anyhow::Result<()> {
-    let param_names: std::collections::HashSet<&String> = configs.iter()
-        .flat_map(|c| c.labels().keys())
-        .collect();
+    let pbox = objs.ref_by_name::<gtk::Box>(&format!("fx{}_params", slot))?;
+    let setters: Rc<std::cell::RefCell<Vec<Option<Setter>>>> = Rc::new(std::cell::RefCell::new(vec![]));
 
-    let mut builder = LogicBuilder::new(controller, objs.clone(), callbacks);
-    let objs = objs.clone();
-    builder
-        .on(select_name)
-        .run(move |value, _, _| {
-            let config = &configs[value as usize];
-
-            for param in param_names.iter() {
-                let label_name = format!("{}_label", param);
-                match objs.ref_by_name::<gtk::Label>(&label_name) {
-                    Ok(label) => {
-                        if let Some(text) = config.labels().get(param.as_str()) {
-                            label.set_text(text);
-                            label.show();
-                        } else {
-                            label.hide();
-                        }
-                    }
-                    Err(_) => {}
-                }
-                match objs.ref_by_name::<gtk::Widget>(param) {
-                    Ok(widget) => {
-                        if config.labels().contains_key(param.as_str()) {
-                            widget.show();
-                        } else {
-                            widget.hide();
-                        }
-                    }
-                    Err(_) => {}
-                }
+    // controller -> widget: one callback per param position.
+    for k in 1..=MAX_FX_PARAMS {
+        let setters = setters.clone();
+        let mut b = LogicBuilder::new(controller.clone(), objs.clone(), callbacks);
+        b.on(&format!("fx{}_param{}", slot, k)).run(move |value, _, _| {
+            if let Some(Some(set)) = setters.borrow().get(k - 1) {
+                set(value);
             }
         });
+    }
+
+    // model select -> rebuild the param widgets for that model. The callback
+    // hands us the already-locked controller (`ctrl`); `arc` is for the new
+    // widgets' edit-time handlers.
+    let pbox2 = pbox.clone();
+    let arc = controller.clone();
+    let mut b = LogicBuilder::new(controller, objs.clone(), callbacks);
+    b.on(&format!("fx{}_select", slot)).run(move |value, ctrl, _| {
+        let Some(model) = FX_MODELS.get(value as usize) else { return; };
+        *setters.borrow_mut() = rebuild_params(slot, &pbox2, &model.params, &arc, ctrl);
+    });
 
     Ok(())
-}
-
-fn wire_stomp_select(
-    stomp_config: &'static [StompConfig],
-    controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &mut Callbacks,
-) -> anyhow::Result<()> {
-    wire_dynamic_select("stomp_select", stomp_config, controller, objs, callbacks)
-}
-
-fn wire_mod_select(
-    mod_config: &'static [ModConfig],
-    controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &mut Callbacks,
-) -> anyhow::Result<()> {
-    wire_dynamic_select("mod_select", mod_config, controller, objs, callbacks)
-}
-
-fn wire_delay_select(
-    delay_config: &'static [DelayConfig],
-    controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &mut Callbacks,
-) -> anyhow::Result<()> {
-    wire_dynamic_select("delay_select", delay_config, controller, objs, callbacks)
 }
 
 pub fn module() -> impl Module {

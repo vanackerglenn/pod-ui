@@ -349,370 +349,239 @@ pub struct FootSwitchInfo {
     pub led_color: i32,
 }
 
-// === Binary Parser ===
+// === Name -> category reverse lookup ===
+//
+// The preset binary identifies each model with per-firmware numeric IDs that do
+// NOT match MODULE_DB's id scheme. The human-readable model name, however, is
+// stored directly in the preset and is unique, so we resolve a module's
+// category from its name.
+static NAME_TO_CATEGORY: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    for (_id, (cat, name)) in MODULE_DB.iter() {
+        m.insert(*name, *cat);
+    }
+    m
+});
+
+pub fn category_for_name(name: &str) -> Option<&'static str> {
+    NAME_TO_CATEGORY.get(name).copied()
+}
+
+// === Binary Parser (MessagePack) ===
+//
+// A Pod Go preset is a single MessagePack document wrapped in a short binary
+// preamble. The outer map carries the real payload under key 104, which is
+// itself a MessagePack *stream* of three values: the "l6-helix" marker string,
+// a binary header, and the preset map. Within the preset map, each signal-chain
+// module is a sub-map carrying its display name under key 5, a node id under
+// key 6, a bypass flag under key 7 and its slot index under key 8.
+
+use rmpv::Value;
+
+const KEY_NAME: u64 = 5;
+const KEY_ID: u64 = 6;
+// Key 7 is the block's ENABLED flag (true = active). Note: hx-protocol.md
+// mislabeled this as "bypass"; the device data shows true = on.
+const KEY_ENABLED: u64 = 7;
+const KEY_SLOT: u64 = 8;
 
 pub fn parse_preset_data(data: &[u8]) -> PresetData {
     let mut preset = PresetData::default();
+    let Some(root) = parse_preset_value(data) else {
+        return preset;
+    };
+    collect_modules(&root, &mut preset.modules);
 
-    // Find slot sections after 8215 marker
-    if let Some(slot_start) = find_marker(data, &[0x82, 0x15]) {
-        let slot_data_start = slot_start + 14; // skip 14 bytes after 8215
-        let slot_data_end = find_marker(data, &[0x08, 0x95])
-            .unwrap_or(data.len());
-        if slot_data_start < slot_data_end {
-            let slot_region = &data[slot_data_start..slot_data_end];
-            parse_slot_modules(slot_region, &mut preset);
+    // Attach parameter values. The signal chain lives at root[0][22] and is
+    // indexed by slot, so chain[slot] holds the block's parameter array.
+    let chain = as_map(&root)
+        .and_then(|m| map_get(m, 0))
+        .and_then(as_map)
+        .and_then(|m| map_get(m, 22))
+        .and_then(|v| v.as_array());
+    if let Some(chain) = chain {
+        for m in &mut preset.modules {
+            if let Some(block) = chain.get(m.slot as usize) {
+                m.parameters = extract_params(block);
+            }
+        }
+
+        // Amp & Cab blocks carry no named entry in root[3][8]; their identity
+        // lives only in the chain meta (block[20][24][25] = model id). Recover
+        // them here so the fixed Amp/Cab selectors populate. The chain index is
+        // the slot. Limited to Amp/Cab — the categories whose small model ids
+        // resolve reliably via the DB.
+        let known_slots: std::collections::HashSet<u8> =
+            preset.modules.iter().map(|m| m.slot).collect();
+        for (slot, block) in chain.iter().enumerate() {
+            if known_slots.contains(&(slot as u8)) {
+                continue;
+            }
+            let Some(id) = chain_block_model_id(block) else { continue; };
+            let hex = format_type_id(id);
+            if let Some((cat, name)) = lookup_module_type(&hex) {
+                if matches!(cat, "Amp" | "Cab") {
+                    preset.modules.push(ModuleInfo {
+                        name: name.to_string(),
+                        category: cat.to_string(),
+                        slot: slot as u8,
+                        bypassed: false,
+                        type_id: hex,
+                        parameters: extract_params(block),
+                    });
+                }
+            }
         }
     }
 
-    // Parse footswitch data after 0895 marker
-    if let Some(fs_start) = find_marker(data, &[0x08, 0x95]) {
-        let fs_data = &data[fs_start..];
-        parse_footswitch_data(fs_data, &mut preset);
-    }
-
-    // Deduplicate modules by name+slot
-    preset.modules.sort_by(|a, b| a.slot.cmp(&b.slot));
+    preset.modules.sort_by_key(|m| m.slot);
     preset.modules.dedup_by(|a, b| a.name == b.name && a.slot == b.slot);
-
     preset
 }
 
-fn find_marker(data: &[u8], marker: &[u8]) -> Option<usize> {
-    data.windows(marker.len()).position(|w| w == marker)
-}
-
-fn parse_slot_modules(data: &[u8], preset: &mut PresetData) {
-    // Find all 91 87 module entry markers in the slot region
-    let mut pos = 0;
-    while pos < data.len() {
-        match data[pos..].windows(2).position(|w| w == [0x91, 0x87]) {
-            Some(off) => {
-                let start = pos + off;
-                if let Some(m) = parse_single_module(&data[start..]) {
-                    preset.modules.push(m);
-                }
-                pos = start + 2;
-            }
-            None => break,
+/// Locate and decode the inner preset map from the raw transfer bytes.
+fn parse_preset_value(data: &[u8]) -> Option<Value> {
+    // The payload stream begins with the "l6-helix" marker string. Back up one
+    // byte to include its MessagePack fixstr header (0xa9) and decode from there.
+    let marker = b"l6-helix";
+    let idx = data.windows(marker.len()).position(|w| w == marker)?;
+    let start = idx.saturating_sub(1);
+    let mut cur: &[u8] = &data[start..];
+    // Stream layout: "l6-helix", <binary header>, <preset map>. Read a handful
+    // of values and return the first Map encountered (the preset itself).
+    for _ in 0..4 {
+        match rmpv::decode::read_value(&mut cur) {
+            Ok(v @ Value::Map(_)) => return Some(v),
+            Ok(_) => continue,
+            Err(_) => break,
         }
-    }
-}
-
-fn parse_single_module(data: &[u8]) -> Option<ModuleInfo> {
-    if data.len() < 4 { return None; }
-
-    let mut pos = 0;
-    let mut name: Option<String> = None;
-    let mut type_id: Option<String> = None;
-    let mut bypassed: Option<bool> = None;
-    let mut slot: Option<u8> = None;
-    let mut parameters: Vec<ParamValue> = vec![];
-
-    // Skip the 91 87 marker
-    if data[pos] == 0x91 && data.get(pos+1) == Some(&0x87) {
-        pos += 2;
-    } else {
-        return None;
-    }
-
-    // Skip header bytes (typically: 0a 00 0b 85 00 01)
-    if data.get(pos) == Some(&0x0a) {
-        pos += 1;
-        // skip value bytes for key 0x0a
-        if data.get(pos) == Some(&0x00) { pos += 1; }
-        // key 0x0b
-        if data.get(pos) == Some(&0x0b) { pos += 1; skip_raw_bytes(data, &mut pos, 3); }
-    }
-
-    // Read key-value pairs until we hit another module or end
-    while pos < data.len() {
-        // Check if we hit next module marker
-        if data[pos] == 0x91 && data.get(pos+1) == Some(&0x87) {
-            break;
-        }
-        // Check for 0x82 0x15 section boundary
-        if data[pos] == 0x82 && data.get(pos+1) == Some(&0x15) {
-            break;
-        }
-
-        let key = data[pos];
-        pos += 1;
-
-        match key {
-            0x05 => {
-                // Module name (fixstr)
-                if let Some(s) = read_string(data, &mut pos) {
-                    name = Some(s);
-                }
-            }
-            0x06 => {
-                // Type ID or parameter value
-                // ID format: ce + 4 bytes (uint32), cd/cc + 2 bytes (uint16), or single byte
-                let id = if let Some(&0xce) = data.get(pos) {
-                    pos += 1;
-                    let v = read_u32(data, &mut pos);
-                    format!("ce{:08x}", v)
-                } else if let Some(&0xcd) = data.get(pos) {
-                    pos += 1;
-                    let v = read_u16(data, &mut pos);
-                    format!("cd{:04x}", v)
-                } else if let Some(&0xcc) = data.get(pos) {
-                    pos += 1;
-                    let v = read_u16(data, &mut pos);
-                    format!("cc{:04x}", v)
-                } else {
-                    let v = read_byte(data, &mut pos);
-                    format!("{:02x}", v)
-                };
-                // Try as type ID first
-                if MODULE_DB.contains_key(id.as_str()) {
-                    type_id = Some(id);
-                } else {
-                    // It's a parameter value
-                    // Parse the value type
-                    let val = read_raw_value(data, &mut pos);
-                    parameters.push(val);
-                }
-            }
-            0x07 => {
-                // Bypass state (c2=false, c3=true)
-                if let Some(b) = read_bool(data, &mut pos) {
-                    bypassed = Some(b);
-                }
-            }
-            0x08 => {
-                // Slot index
-                slot = Some(read_byte(data, &mut pos));
-            }
-            0x0c => {
-                // Additional state (c2|c3 or value)
-                let _ = read_raw_value(data, &mut pos);
-            }
-            0x0d => {
-                // Flag
-                let _ = read_bool(data, &mut pos);
-            }
-            0x0e => {
-                // String (custom label)
-                let _ = read_string(data, &mut pos);
-            }
-            0x10 => {
-                // LED color
-                let _ = read_byte(data, &mut pos);
-            }
-            0x0f => {
-                // Another flag
-                let _ = read_bool(data, &mut pos);
-            }
-            _ => {
-                // Unknown key — skip its value
-                if key >= 0xa0 && key <= 0xbf {
-                    // This is actually a string (fixstr), key was consumed as string prefix
-                    // Let's handle this: put the "key" back as string prefix
-                    // The key is actually the string length byte
-                    let slen = (((key & 0xf0) - 0xa0) + (key & 0x0f)) as usize;
-                    if pos + slen <= data.len() {
-                        let s: String = data[pos..pos+slen].iter()
-                            .take_while(|&&c| c != 0)
-                            .map(|&c| c as char)
-                            .collect();
-                        if name.is_none() && !s.is_empty() && s.len() > 1 && !s.starts_with("SNAPSHOT") {
-                            name = Some(s);
-                        }
-                        pos += slen;
-                        if data.get(pos) == Some(&0x00) { pos += 1; }
-                    }
-                    break;
-                }
-                skip_unexpected(data, &mut pos);
-            }
-        }
-    }
-
-    let name = name.unwrap_or_else(|| "Unknown".to_string());
-    let type_id = type_id.unwrap_or_else(|| String::new());
-    let category = MODULE_DB.get(type_id.as_str())
-        .map(|(c, _)| *c)
-        .unwrap_or("Unknown")
-        .to_string();
-
-    Some(ModuleInfo {
-        name,
-        category,
-        slot: slot.unwrap_or(0),
-        bypassed: bypassed.unwrap_or(false),
-        type_id,
-        parameters,
-    })
-}
-
-fn read_byte(data: &[u8], pos: &mut usize) -> u8 {
-    let v = data.get(*pos).copied().unwrap_or(0);
-    *pos += 1;
-    v
-}
-
-fn read_u16(data: &[u8], pos: &mut usize) -> u16 {
-    let v = data.get(*pos).copied().unwrap_or(0) as u16;
-    let v2 = data.get(*pos + 1).copied().unwrap_or(0) as u16;
-    *pos += 2;
-    (v << 8) | v2
-}
-
-fn read_u32(data: &[u8], pos: &mut usize) -> u32 {
-    let v = data.get(*pos).copied().unwrap_or(0) as u32;
-    let v2 = data.get(*pos + 1).copied().unwrap_or(0) as u32;
-    let v3 = data.get(*pos + 2).copied().unwrap_or(0) as u32;
-    let v4 = data.get(*pos + 3).copied().unwrap_or(0) as u32;
-    *pos += 4;
-    (v << 24) | (v2 << 16) | (v3 << 8) | v4
-}
-
-fn read_bool(data: &[u8], pos: &mut usize) -> Option<bool> {
-    match data.get(*pos) {
-        Some(0xc2) => { *pos += 1; Some(true) }
-        Some(0xc3) => { *pos += 1; Some(false) }
-        _ => None,
-    }
-}
-
-fn read_string(data: &[u8], pos: &mut usize) -> Option<String> {
-    let len_byte = data.get(*pos)?;
-    if *len_byte >= 0xa0 && *len_byte <= 0xbf {
-        let slen = (((len_byte & 0xf0) - 0xa0) + (len_byte & 0x0f)) as usize;
-        *pos += 1;
-        if *pos + slen <= data.len() {
-            let end = data[*pos..].iter().position(|&c| c == 0).unwrap_or(slen).min(slen);
-            let s: String = data[*pos..*pos+end].iter().map(|&c| c as char).collect();
-            *pos += end;
-            // Skip null terminator
-            if *pos < data.len() && data[*pos] == 0x00 { *pos += 1; }
-            // Skip remaining of slen if we stopped early
-            *pos += slen - end;
-            return Some(s);
-        }
-        *pos += slen.min(data.len().saturating_sub(*pos));
     }
     None
 }
 
-fn read_raw_value(data: &[u8], pos: &mut usize) -> ParamValue {
-    // Check if it's a float (ca + 4 bytes)
-    if data.get(*pos) == Some(&0xca) {
-        *pos += 1;
-        if *pos + 4 <= data.len() {
-            let bytes: [u8; 4] = [
-                data[*pos],
-                data[*pos + 1],
-                data[*pos + 2],
-                data[*pos + 3],
-            ];
-            *pos += 4;
-            return ParamValue::Float(f32::from_be_bytes(bytes));
+fn map_get<'a>(map: &'a [(Value, Value)], key: u64) -> Option<&'a Value> {
+    map.iter().find(|(k, _)| k.as_u64() == Some(key)).map(|(_, v)| v)
+}
+
+fn as_map(v: &Value) -> Option<&Vec<(Value, Value)>> {
+    match v {
+        Value::Map(m) => Some(m),
+        _ => None,
+    }
+}
+
+/// Extract a chain block's parameter values. The block stores its values under
+/// key 20, which contains several sub-maps keyed by a count; the populated one
+/// (vs. an empty snapshot copy) holds the value array at key 4.
+fn extract_params(block: &Value) -> Vec<ParamValue> {
+    let Some(sub) = as_map(block).and_then(|m| map_get(m, 20)).and_then(as_map) else {
+        return vec![];
+    };
+    let mut best: Option<&Vec<Value>> = None;
+    for (k, v) in sub {
+        if k.as_u64() == Some(24) {
+            continue; // skip the block meta (enabled/model/position)
         }
-        return ParamValue::Int(0);
-    }
-    // Check if it's a bool
-    if let Some(b) = read_bool(data, pos) {
-        return ParamValue::Bool(b);
-    }
-    // Default: single byte int
-    let v = read_byte(data, pos);
-    ParamValue::Int(v)
-}
-
-fn skip_raw_bytes(data: &[u8], pos: &mut usize, n: usize) {
-    *pos += n.min(data.len().saturating_sub(*pos));
-}
-
-fn skip_unexpected(data: &[u8], pos: &mut usize) {
-    // Skip a byte and try to resync
-    *pos += 1;
-}
-
-fn parse_footswitch_data(data: &[u8], preset: &mut PresetData) {
-    // Find footswitch sections after 0895, before 049a
-    let start = 2; // skip 0895
-    let end = find_marker(data, &[0x04, 0x9a]).unwrap_or(data.len());
-    if start >= end { return; }
-    let fs_region = &data[start..end];
-
-    let mut pos = 0;
-    while pos < fs_region.len() {
-        // Look for 9X 87 markers
-        if fs_region[pos] >= 0x90 && fs_region[pos] <= 0x9f
-            && fs_region.get(pos + 1) == Some(&0x87) {
-            let _count = (fs_region[pos] & 0x0f) as usize;
-            pos += 2;
-            // Parse children
-            let mut info = FootSwitchInfo {
-                label: String::new(),
-                custom_label: String::new(),
-                led_color: -1,
-            };
-            parse_fs_children(fs_region, &mut pos, &mut info);
-            if !info.label.is_empty() || !info.custom_label.is_empty() {
-                preset.footswitches.push(info);
+        if let Some(arr) = as_map(v).and_then(|m| map_get(m, 4)).and_then(|x| x.as_array()) {
+            if best.map_or(true, |b| arr.len() > b.len()) {
+                best = Some(arr);
             }
-        } else if fs_region[pos] == 0xc0 {
-            // Empty slot
-            pos += 1;
-        } else {
-            pos += 1;
         }
+    }
+    best.map(|arr| arr.iter().map(value_to_param).collect()).unwrap_or_default()
+}
+
+/// A chain block's model id, stored in its meta sub-map at key 20 -> 24 -> 25.
+/// Used to recover blocks (Amp/Cab) that have no named entry elsewhere.
+fn chain_block_model_id(block: &Value) -> Option<u64> {
+    as_map(block)
+        .and_then(|m| map_get(m, 20)).and_then(as_map)
+        .and_then(|m| map_get(m, 24)).and_then(as_map)
+        .and_then(|m| map_get(m, 25)).and_then(|v| v.as_u64())
+}
+
+fn value_to_param(v: &Value) -> ParamValue {
+    match v {
+        Value::Boolean(b) => ParamValue::Bool(*b),
+        Value::F32(f) => ParamValue::Float(*f),
+        Value::F64(f) => ParamValue::Float(*f as f32),
+        Value::Integer(i) => ParamValue::Float(i.as_f64().unwrap_or(0.0) as f32),
+        _ => ParamValue::Raw(vec![]),
     }
 }
 
-fn parse_fs_children(data: &[u8], pos: &mut usize, info: &mut FootSwitchInfo) {
-    while *pos < data.len() {
-        if data[*pos] >= 0x90 && data.get(*pos + 1) == Some(&0x87) {
-            break; // next section
-        }
-        if data[*pos] == 0xc0 { break; }
-
-        let marker = data[*pos];
-        *pos += 1;
-
-        match marker {
-            0x05 => {
-                if let Some(s) = read_string(data, pos) {
-                    info.label = s;
+/// Recursively walk the decoded preset, collecting every sub-map that looks
+/// like a module entry (has a string name, an enabled flag and a slot index).
+fn collect_modules(value: &Value, out: &mut Vec<ModuleInfo>) {
+    match value {
+        Value::Map(entries) => {
+            let is_module = map_get(entries, KEY_NAME).and_then(|v| v.as_str()).is_some()
+                && map_get(entries, KEY_SLOT).and_then(|v| v.as_u64()).is_some()
+                && map_get(entries, KEY_ENABLED).is_some();
+            if is_module {
+                if let Some(m) = module_from_map(entries) {
+                    out.push(m);
                 }
             }
-            0x0e => {
-                if let Some(s) = read_string(data, pos) {
-                    info.custom_label = s;
-                }
-            }
-            0x10 => {
-                info.led_color = read_byte(data, pos) as i32;
-            }
-            0x07 | 0x0d | 0x0f | 0x29 => {
-                let _ = read_bool(data, pos);
-            }
-            0x0a => {
-                let _ = read_byte(data, pos);
-                if data.get(*pos) == Some(&0x00) { *pos += 1; }
-            }
-            0x0b => { skip_raw_bytes(data, pos, 3); }
-            0x08 => {
-                let _ = read_byte(data, pos);
-            }
-            0x09 => { skip_raw_bytes(data, pos, 5); }
-            _ => {
-                // Try to skip a reasonable amount
-                if (0xa0..=0xbf).contains(&marker) {
-                    // String that we missed the key for
-                    let slen = (((marker & 0xf0) - 0xa0) + (marker & 0x0f)) as usize;
-                    skip_raw_bytes(data, pos, slen + 1);
-                 } else {
-                    skip_raw_bytes(data, pos, 1);
-                }
+            for (_, v) in entries {
+                collect_modules(v, out);
             }
         }
+        Value::Array(items) => {
+            for v in items {
+                collect_modules(v, out);
+            }
+        }
+        _ => {}
     }
 }
+
+fn module_from_map(entries: &[(Value, Value)]) -> Option<ModuleInfo> {
+    let name = map_get(entries, KEY_NAME)?
+        .as_str()?
+        .trim_end_matches('\0')
+        .to_string();
+    if name.is_empty() || name.starts_with("SNAPSHOT") {
+        return None;
+    }
+    let slot = map_get(entries, KEY_SLOT).and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+    // Key 7 is the enabled flag (true = active); a block is bypassed when it is
+    // present but not enabled. Default to enabled if the flag is missing.
+    let enabled = map_get(entries, KEY_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let bypassed = !enabled;
+    let type_id = map_get(entries, KEY_ID)
+        .and_then(|v| v.as_u64())
+        .map(format_type_id)
+        .unwrap_or_default();
+    let category = category_for_name(&name).unwrap_or("Unknown").to_string();
+    Some(ModuleInfo {
+        name,
+        category,
+        slot,
+        bypassed,
+        type_id,
+        // Parameter values are decoded in a later stage; the chain block float
+        // arrays (preset[0][22][..]) are not yet mapped onto the param controls.
+        parameters: vec![],
+    })
+}
+
+/// Reconstruct the MessagePack-byte hex form of an integer id (matching
+/// MODULE_DB's key format) for diagnostics / logging.
+fn format_type_id(v: u64) -> String {
+    if v < 0x80 {
+        format!("{:02x}", v)
+    } else if v < 0x100 {
+        format!("cc{:02x}", v)
+    } else if v < 0x10000 {
+        format!("cd{:04x}", v)
+    } else {
+        format!("ce{:08x}", v)
+    }
+}
+
 
 pub fn models_by_category(category: &str) -> Vec<&'static str> {
     let mut names: Vec<&'static str> = MODULE_DB
@@ -748,4 +617,55 @@ pub fn all_effect_models() -> Vec<&'static str> {
         .collect();
     names.sort();
     names
+}
+
+/// Whether a parsed block belongs to one of POD Go's fixed (dedicated) block
+/// positions — Amp, Cab, Wah, Volume pedal, and the FX Loop — as opposed to
+/// one of the four freely-assignable FX slots. Anything not classified here is
+/// treated as an assignable FX block.
+///
+/// NOTE: EQ can be EITHER the dedicated Preset EQ block OR an EQ used in an FX
+/// slot; the two are only distinguishable by chain position (TBD on hardware),
+/// so EQ is currently NOT treated as fixed here.
+pub fn is_fixed_block_category(category: &str, name: &str) -> bool {
+    match category {
+        "Amp" | "Cab" | "Wah" | "Vol/Pan" => true,
+        // EQ is POD Go's dedicated Preset EQ block. (An EQ could in principle
+        // also be dropped into an FX slot; in that rare case it would route to
+        // Preset EQ here. POD Go has only one Preset EQ block.)
+        "EQ" => true,
+        "Send/Return" => true,
+        _ => name.contains("FX Loop"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_fixed_blocks() {
+        assert!(is_fixed_block_category("Wah", "Weeper"));
+        assert!(is_fixed_block_category("Vol/Pan", "Volume Pedal"));
+        assert!(is_fixed_block_category("Unknown", "Mono FX Loop"));
+        assert!(is_fixed_block_category("EQ", "10 Band Graphic")); // Preset EQ
+        assert!(!is_fixed_block_category("Distortion", "Deez One Vintage"));
+        assert!(!is_fixed_block_category("Modulation", "Gray Flanger"));
+    }
+
+    // Integration check against a real captured preset, when present. Skips on
+    // machines without the capture (e.g. CI). Capture via PODGO_DUMP=1.
+    #[test]
+    fn parses_amp_cab_from_captured_preset() {
+        let path = "/tmp/podgo_preset.bin";
+        if !std::path::Path::new(path).exists() {
+            eprintln!("skipping: {path} not present");
+            return;
+        }
+        let data = std::fs::read(path).unwrap();
+        let preset = parse_preset_data(&data);
+        let has = |cat: &str| preset.modules.iter().any(|m| m.category == cat);
+        assert!(has("Amp"), "expected an Amp block to be recovered from chain meta");
+        assert!(has("Cab"), "expected a Cab block to be recovered from chain meta");
+    }
 }

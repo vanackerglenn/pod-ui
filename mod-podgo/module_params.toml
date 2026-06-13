@@ -1,0 +1,1902 @@
+# POD Go — per-model parameter spec (fill in from the device).
+#
+# For each module, list its parameters IN THE ORDER THEY APPEAR ON THE DEVICE
+# screen. Each param is an inline table: { name = "...", kind = "..." }
+#
+# kind values:
+#   percent   - 0..100%% (stored normalized 0..1) — the common case, fits a slider
+#   db        - decibels (EQ gain, some levels/thresholds)
+#   hz        - frequency in Hz
+#   ms        - time in milliseconds
+#   time      - tempo / note-division (e.g. "1/4", "1/8 dotted"); often the 1st param
+#   semitones - pitch in semitones
+#   enum      - discrete choice (wave shape, octave, # of heads, ...); add options = ["..",".."]
+#   bool      - on/off switch
+#   int       - integer count
+#   unknown   - placeholder until you check
+#
+# Leave `params = []` for modules not done yet. Fill order matters — the device
+# emits param VALUES positionally, so the Nth entry here maps to the Nth value.
+# One example (Gray Flanger) is filled to show the format; verify its kinds too.
+
+
+# ========== Distortion (36) ==========
+
+[[module]]
+category = "Distortion"
+name = "Kinky Boost"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Boost", kind = "percent" },
+  { name = "Bright", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Deranged Master"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Bass", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Minotaur"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Teemah!"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "BassCut", kind = "percent" },
+  { name = "TrebleCut", kind = "percent" },
+  { name = "Clipping", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Heir Apparent"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Presence", kind = "percent" },
+  { name = "Clipping", kind = "percent" },
+  { name = "GainMod", kind = "percent" },
+  { name = "Level", kind = "percent" },
+  { name = "Voltage", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Tone Sovereign"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Alpaca Rogue"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "HighCut", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Compulsive Drive"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "PeakType", kind = "percent" },
+  { name = "Version", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Dhyana Drive"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Voice", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Horizon Drive"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Attack", kind = "percent" },
+  { name = "Attack", kind = "percent" },
+  { name = "Bright", kind = "percent" },
+  { name = "Gate", kind = "percent" },
+  { name = "GateRange", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Valve Driver"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Bass", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Top Secret OD"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Scream 808"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Hedgehog D9"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Stupor OD"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Deez One Vintage"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Deez One Mod"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+  { name = "Clipping", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Vermin Dist"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Filter", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "KWB"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "PushDiode", kind = "percent" },
+  { name = "PullDiode", kind = "percent" },
+  { name = "Bass", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+  { name = "Level", kind = "percent" },
+  { name = "Asymm", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Swedish Chainsaw"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Bass", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Arbitrator Fuzz"
+params = [
+  { name = "Fuzz", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Pocket Fuzz"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Bighorn Fuzz"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Triangle Fuzz"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "DarkDoveFuzz"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Ballistic Fuzz"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Industrial Fuzz"
+params = [
+  { name = "Compress", kind = "percent" },
+  { name = "Gate", kind = "percent" },
+  { name = "Drive", kind = "percent" },
+  { name = "Stability", kind = "percent" },
+  { name = "Oscillator", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Tycoctavia Fuzz"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Wringer Fuzz"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+  { name = "Bass", kind = "percent" },
+  { name = "Level", kind = "percent" },
+  { name = "FuzzType", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Thrifter Fuzz"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Attack", kind = "percent" },
+  { name = "NotchFreq", kind = "hz" },
+  { name = "NotchGain", kind = "percent" },
+  { name = "Thick", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Xenomorph Fuzz"
+params = [
+  { name = "Gain", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+  { name = "Clipping", kind = "percent" },
+  { name = "OscLevel", kind = "percent" },
+  { name = "OscTone", kind = "percent" },
+  { name = "MinFreq", kind = "hz" },
+  { name = "WaveShape", kind = "enum" },
+  { name = "Sensibility", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Megaphone"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Bitcrusher"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Ampeg Scrambler"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "ZeroAmp Bass DI"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion"
+name = "Obsidian 7000"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+# ========== Distortion (Legacy) (6) ==========
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Tube Drive"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Screamer"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Overdrive"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Classic Dist"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Heavy Dist"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Distortion (Legacy)"
+name = "Buzz Saw"
+params = [
+  { name = "Drive", kind = "percent" },
+  { name = "Tone", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+# ========== Dynamic (10) ==========
+
+[[module]]
+category = "Dynamic"
+name = "Deluxe Comp"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Red Squeeze"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Kinky Comp"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Rochester Comp"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "LA Studio Comp"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "3-Band Comp"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Noise Gate"
+params = [
+  { name = "Threshold", kind = "db" },
+  { name = "Decay", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Hard Gate"
+params = [
+  { name = "Threshold", kind = "db" },
+  { name = "Decay", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Horizon Gate"
+params = [
+  { name = "Threshold", kind = "db" },
+  { name = "Decay", kind = "percent" },
+]
+
+[[module]]
+category = "Dynamic"
+name = "Autoswell"
+params = [
+  { name = "Sensitivity", kind = "percent" },
+  { name = "Depth", kind = "percent" },
+]
+
+# ========== EQ (8) ==========
+
+[[module]]
+category = "EQ"
+name = "Simple EQ"
+params = [
+  { name = "Bass", kind = "percent" },
+  { name = "Mid", kind = "percent" },
+  { name = "Treble", kind = "percent" },
+]
+
+[[module]]
+category = "EQ"
+name = "Low and High Cut"
+params = [
+  { name = "Low Cut", kind = "hz" },
+  { name = "High Cut", kind = "hz" },
+]
+
+[[module]]
+category = "EQ"
+name = "Low/High Shelf"
+params = [
+  { name = "Low Shelf", kind = "db" },
+  { name = "High Shelf", kind = "db" },
+]
+
+[[module]]
+category = "EQ"
+name = "Parametric"
+params = [
+  { name = "Frequency", kind = "hz" },
+  { name = "Q", kind = "percent" },
+  { name = "Gain", kind = "percent" },
+]
+
+[[module]]
+category = "EQ"
+name = "Tilt"
+params = [
+  { name = "Tilt", kind = "percent" },
+]
+
+[[module]]
+category = "EQ"
+name = "10 Band Graphic"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+[[module]]
+category = "EQ"
+name = "Cali Q Graphic"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+[[module]]
+category = "EQ"
+name = "Acoustic Sim"
+params = [
+  { name = "Body", kind = "percent" },
+  { name = "Pickup", kind = "percent" },
+]
+
+# ========== Filter (4) ==========
+
+[[module]]
+category = "Filter"
+name = "Mutant Filter"
+params = [
+  { name = "Frequency", kind = "hz" },
+  { name = "Resonance", kind = "percent" },
+]
+
+[[module]]
+category = "Filter"
+name = "Mystery Filter"
+params = [
+  { name = "Frequency", kind = "hz" },
+  { name = "Resonance", kind = "percent" },
+]
+
+[[module]]
+category = "Filter"
+name = "Autofilter"
+params = [
+  { name = "Frequency", kind = "hz" },
+  { name = "Resonance", kind = "percent" },
+]
+
+[[module]]
+category = "Filter"
+name = "Asheville Pattrn"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+# ========== Modulation (24) ==========
+
+[[module]]
+category = "Modulation"
+name = "Optical Trem"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "60s Bias Trem"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Tremolo/Autopan"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Wave", kind = "enum" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Harmonic Tremolo"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Bleat Chop Trem"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Script Mod Phase"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Pebble Phaser"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Feedback", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Ubiquitous Vibe"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Deluxe Phaser"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Feedback", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Gray Flanger"
+params = [
+  { name = "Rate",     kind = "time" },     # verify: could be hz
+  { name = "Width",    kind = "percent" },
+  { name = "Manual",   kind = "percent" },
+  { name = "Regen",    kind = "percent" },
+  { name = "Spread",   kind = "percent" },
+  { name = "Mix",      kind = "percent" },
+  { name = "Level",    kind = "db" },        # verify
+  { name = "Headroom", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Harmonic Flanger"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Feedback", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Courtesan Flange"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Feedback", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Dynamix Flanger"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Feedback", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Chorus"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "70s Chorus"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "PlastiChorus"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Bubble Vibrato"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Trinity Chorus"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Vibe Rotary"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "122 Rotary"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "145 Rotary"
+params = [
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Double Take"
+params = [
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "Poly Detune"
+params = [
+  { name = "Detune", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Modulation"
+name = "AM Ring Mod"
+params = [
+  { name = "Frequency", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+# ========== Delay (22) ==========
+
+[[module]]
+category = "Delay"
+name = "Simple Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Mod/Chorus Echo"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mod Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Dual Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Offset", kind = "ms" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Multitap 4"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Pattern", kind = "enum" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Multitap 6"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Pattern", kind = "enum" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Ping Pong"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Spread", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Sweep Echo"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Speed", kind = "hz" },
+  { name = "Depth", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Ducked Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Threshold", kind = "db" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Reverse Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Vintage Digital"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Vintage Swell"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Swim", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Pitch Echo"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Transistor Tape"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Flutter", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Cosmos Echo"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Harmony Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Harmony", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Bucket Brigade"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Adriatic Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Adriatic Swell"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Swim", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Elephant Man"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Multi Pass"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+[[module]]
+category = "Delay"
+name = "Poly Sustain"
+params = [
+  { name = "Sustain", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Delay"
+name = "Glitch Delay"
+params = [
+  { name = "Feedback", kind = "percent" },
+  { name = "Glitch", kind = "percent" },
+  { name = "Mix", kind = "percent" },
+]
+
+# ========== Reverb (17) ==========
+
+[[module]]
+category = "Reverb"
+name = "Glitz"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Ganymede"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Searchlights"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Plateaux"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Double Tank"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Plate"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Room"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Chamber"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Hall"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Echo"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Tile"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Cave"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Ducking"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Octo"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "63 Spring"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Spring"
+params = []
+
+[[module]]
+category = "Reverb"
+name = "Particle Verb"
+params = []
+
+# ========== Pitch/Synth (10) ==========
+
+[[module]]
+category = "Pitch/Synth"
+name = "Pitch Wham"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Twin Harmony"
+params = [
+  { name = "Harmony", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Simple Pitch"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Dual Pitch"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Poly Pitch"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Poly Wham"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "Poly Capo"
+params = [
+  { name = "Pitch", kind = "semitones" },
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "12 String"
+params = [
+  { name = "Mix", kind = "percent" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "3 Note Generator"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+[[module]]
+category = "Pitch/Synth"
+name = "4 OSC Generator"
+params = [
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+  { name = "", kind = "unknown" },
+]
+
+# ========== Wah (10) ==========
+
+[[module]]
+category = "Wah"
+name = "UK Wah 846"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Teardrop 310"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Fassel"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Weeper"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Chrome"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Chrome Custom"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Throaty"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Vetta Wah"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Colorful"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+[[module]]
+category = "Wah"
+name = "Conductor"
+params = [
+  { name = "Position", kind = "percent" },
+]
+
+# ========== Vol/Pan (5) ==========
+
+[[module]]
+category = "Vol/Pan"
+name = "Volume Pedal"
+params = [
+  { name = "Level", kind = "percent" },
+]
+
+[[module]]
+category = "Vol/Pan"
+name = "Gain"
+params = [
+  { name = "Gain", kind = "percent" },
+]
+
+[[module]]
+category = "Vol/Pan"
+name = "Pan"
+params = [
+  { name = "Pan", kind = "percent" },
+]
+
+[[module]]
+category = "Vol/Pan"
+name = "Stereo Width"
+params = [
+  { name = "Width", kind = "percent" },
+]
+
+[[module]]
+category = "Vol/Pan"
+name = "Stereo Imager"
+params = [
+  { name = "Width", kind = "percent" },
+  { name = "Center", kind = "percent" },
+]
+
+# ========== Amp (72) ==========
+
+[[module]]
+category = "Amp"
+name = "WhoWatt 100"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Soup Pro"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Stone Age 185"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Voltage Queen"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Tweed Blues Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Tweed Blues Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Fullerton Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Fullerton Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Fullerton Jump"
+params = []
+
+[[module]]
+category = "Amp"
+name = "GrammaticoLG Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "GrammaticoLG Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "GrammaticoLG Jmp"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Small Tweed"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Princess"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Deluxe Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Deluxe Vib"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Double Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "US Double Vib"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Mail Order Twin"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Divided Duo"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Interstate Zed"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Derailed Ingrid"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Jazz Rivet 120"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Essex A15"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Essex A30"
+params = []
+
+[[module]]
+category = "Amp"
+name = "A30 Fawn Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "A30 Fawn Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Matchstick Ch1"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Matchstick Ch2"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Matchstick Jump"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Mandarin 80"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit J45 Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit J45 Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Trem Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Trem Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Trem Jump"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Plexi Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Plexi Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit Plexi Jump"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit P75 Nrm"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit P75 Brt"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Brit 2204"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Placater Clean"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Placater Dirty"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cartographer"
+params = []
+
+[[module]]
+category = "Amp"
+name = "German Mahadeva"
+params = []
+
+[[module]]
+category = "Amp"
+name = "German Ubersonic"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali Texas Ch1"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali Texas Ch2"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali IV Rhythm 1"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali IV Rhythm 2"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali IV Lead"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Cali Rectifire"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Archetype Clean"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Archetype Lead"
+params = []
+
+[[module]]
+category = "Amp"
+name = "ANGL Meteor"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Solo Lead Clean"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Solo Lead Crunch"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Solo Lead OD"
+params = []
+
+[[module]]
+category = "Amp"
+name = "PV Panama"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Revv Gen Purple"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Revv Gen Red"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Das Benzin Mega"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Das Benzin Lead"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Elektrik"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Doom"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Epic"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 2204 Mod"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Fatality"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Litigator"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Line 6 Badonk"
+params = []
+
+[[module]]
+category = "Amp"
+name = "Studio Tube Pre"
+params = []
+
+# ========== Cab (33) ==========
+
+[[module]]
+category = "Cab"
+name = "Soup Pro Ellipse"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x8 Small Tweed"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x10 US Princess"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Field Coil"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Fullerton"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Grammatico"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 US Deluxe"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 US Princess"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Celest 12H"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Blue Bell"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Lead 80"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Cali IV"
+params = []
+
+[[module]]
+category = "Cab"
+name = "1x12 Cali Ext"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Double C12N"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Mail C12Q"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Interstate"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Jazz Rivet"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Silver Bell"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Blue Bell"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Match H30"
+params = []
+
+[[module]]
+category = "Cab"
+name = "2x12 Match G25"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x10 Tweed P10R"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 WhoWatt 100"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Mandarin EM"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Greenback25"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Greenback20"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Blackback30"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 1960 T75"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Uber V30"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Uber T75"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 Cali V30"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 XXL V30"
+params = []
+
+[[module]]
+category = "Cab"
+name = "4x12 SoloLead EM"
+params = []
+
+# ========== Impulse Response (2) ==========
+
+[[module]]
+category = "Impulse Response"
+name = "1024 samples"
+params = []
+
+[[module]]
+category = "Impulse Response"
+name = "2048 samples"
+params = []
+
+# ========== Send/Return (9) ==========
+
+[[module]]
+category = "Send/Return"
+name = "Send/Return"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Send L"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Send R"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Return L"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Return R"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "FX Loop L"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "FX Loop R"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Send L/R"
+params = []
+
+[[module]]
+category = "Send/Return"
+name = "Return L/R"
+params = []

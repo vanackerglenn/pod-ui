@@ -3,9 +3,14 @@ use maplit::*;
 use once_cell::sync::Lazy;
 use pod_core::model::*;
 use pod_core::def;
-use pod_mod_pod2::{short, long, steps, fmt_percent};
+use pod_mod_pod2::fmt_percent;
 use crate::builders::*;
 use crate::model::*;
+
+/// Maximum number of parameters a single FX slot can display. Generous upper
+/// bound (largest model seen so far is ~10); the dynamic UI only shows as many
+/// as the selected model actually has.
+pub const MAX_FX_PARAMS: usize = 12;
 
 pub static AMP_MODELS: Lazy<Vec<Amp>> = Lazy::new(|| {
     pod_usb::all_amp_models().into_iter().map(|n| Amp {
@@ -40,6 +45,11 @@ pub static WAH_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
 
 pub static DYN_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
     pod_usb::models_by_category("Dynamic").into_iter().map(|n| n.to_string()).collect()
+});
+
+// EQ models for the dedicated Preset EQ block.
+pub static EQ_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
+    pod_usb::models_by_category("EQ").into_iter().map(|n| n.to_string()).collect()
 });
 
 // module parameter labels
@@ -200,15 +210,149 @@ pub static DELAY_CONFIG: Lazy<Vec<DelayConfig>> = Lazy::new(|| {
     ))
 });
 
+/// A model assignable to one of the 4 generic FX slots. POD Go's four
+/// freely-assignable blocks can host any effect model; this catalog is the
+/// union of all assignable categories, each carrying an (initially generic)
+/// ordered param spec.
+pub struct FxModel {
+    pub name: String,
+    pub category: &'static str,
+    pub params: ParamSpec,
+}
+
+pub static FX_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
+    const FX_CATEGORIES: &[&str] = &[
+        "Distortion", "Distortion (Legacy)", "Dynamic", "EQ", "Modulation",
+        "Delay", "Reverb", "Pitch/Synth", "Filter", "Wah", "Vol/Pan",
+    ];
+    let mut v = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for cat in FX_CATEGORIES {
+        for name in pod_usb::models_by_category(cat) {
+            // The model DB has a few same-named entries (e.g. two
+            // "4 OSC Generator" type ids); keep names unique so the combo
+            // index used by position() lookups stays stable.
+            if !seen.insert(name) {
+                continue;
+            }
+            v.push(FxModel {
+                name: name.to_string(),
+                category: cat,
+                params: param_spec_for(name),
+            });
+        }
+    }
+    v
+});
+
+// Editable per-model parameter data, filled in from the device / owner's
+// manual. Editing module_params.toml updates the UI with no code changes —
+// the Nth param entry maps to the Nth value the device emits for that model.
+#[derive(serde::Deserialize)]
+struct TomlParam {
+    name: String,
+    #[serde(default)] kind: String,
+    #[serde(default)] options: Vec<String>,
+}
+#[derive(serde::Deserialize)]
+struct TomlModule { name: String, #[serde(default)] params: Vec<TomlParam> }
+#[derive(serde::Deserialize)]
+struct TomlModuleFile { #[serde(default)] module: Vec<TomlModule> }
+
+static MODULE_PARAMS: Lazy<HashMap<String, ParamSpec>> = Lazy::new(|| {
+    let src = include_str!("../module_params.toml");
+    match toml::from_str::<TomlModuleFile>(src) {
+        Ok(f) => f.module.into_iter()
+            .filter(|m| !m.params.is_empty())
+            .map(|m| {
+                let defs = m.params.into_iter().map(|p| ParamDef {
+                    name: p.name,
+                    kind: ParamKind::parse(&p.kind),
+                    options: p.options,
+                }).collect();
+                (m.name, ParamSpec::from_defs(defs))
+            })
+            .collect(),
+        Err(e) => {
+            log::error!("failed to parse module_params.toml: {e}");
+            HashMap::new()
+        }
+    }
+});
+
+/// Per-model param spec. `module_params.toml` is the source of truth (fill it in
+/// to surface a model's params); the legacy hand-mapped configs are the fallback
+/// for anything not yet present there.
+fn param_spec_for(name: &str) -> ParamSpec {
+    if let Some(s) = MODULE_PARAMS.get(name) {
+        return s.clone();
+    }
+    if let Some(c) = STOMP_CONFIG.iter().find(|c| c.name == name) {
+        return spec_from_labels(&c.labels, "stomp");
+    }
+    if let Some(c) = MOD_CONFIG.iter().find(|c| c.name == name) {
+        return spec_from_labels(&c.labels, "mod");
+    }
+    if let Some(c) = DELAY_CONFIG.iter().find(|c| c.name == name) {
+        return spec_from_labels(&c.labels, "delay");
+    }
+    ParamSpec::default()
+}
+
+/// Convert a builder-style labels map (keys `"{prefix}_param{n}"` or
+/// `"{prefix}_param{n}_{suffix}"`, `n` starting at 2) into an ordered
+/// `ParamSpec` whose index 0 is the first device param.
+fn spec_from_labels(labels: &HashMap<String, String>, prefix: &str) -> ParamSpec {
+    let key_prefix = format!("{}_param", prefix);
+    let mut by_pos: HashMap<usize, String> = HashMap::new();
+    let mut max_n = 1usize;
+    for (k, v) in labels {
+        let Some(rest) = k.strip_prefix(&key_prefix) else { continue; };
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        let Ok(n) = digits.parse::<usize>() else { continue; };
+        by_pos.insert(n, v.clone());
+        if n > max_n { max_n = n; }
+    }
+    // The old builders number params from 2, so position = n - 2.
+    let labels: Vec<String> = (2..=max_n)
+        .map(|n| by_pos.get(&n).cloned().unwrap_or_default())
+        .collect();
+    ParamSpec::from_strings(labels)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_params_load_from_toml() {
+        // module_params.toml is the hand-edited source of truth, so assert the
+        // loader works rather than specific (editable) param names/counts.
+        assert!(!MODULE_PARAMS.is_empty(), "module_params.toml should parse to some specs");
+        // A filled model resolves with a non-empty first label.
+        let s = param_spec_for("Kinky Boost");
+        assert!(!s.is_empty() && s.label(0).is_some());
+        // Unknown model -> empty spec.
+        assert!(param_spec_for("No Such Model").is_empty());
+    }
+
+    #[test]
+    fn fx_models_includes_known_effects_with_unique_names() {
+        let names: Vec<&str> = FX_MODELS.iter().map(|m| m.name.as_str()).collect();
+        assert!(names.contains(&"Deez One Vintage"));
+        assert!(names.contains(&"Gray Flanger"));
+        assert!(names.contains(&"Chamber"));
+        // names must be unique so position() lookups are stable
+        let mut sorted = names.clone(); sorted.sort(); sorted.dedup();
+        assert_eq!(sorted.len(), names.len());
+    }
+}
+
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let controls: HashMap<String, Control> = convert_args!(hashmap!(
+    let mut controls: HashMap<String, Control> = convert_args!(hashmap!(
         // switches
         "noise_gate_enable" => SwitchControl { cc: 22, addr: 32 + 22, ..def() },
         "wah_enable" => SwitchControl { cc: 43, addr: 32 + 43, ..def() },
-        "stomp_enable" => SwitchControl { cc: 25, addr: 32 + 25, ..def() },
-        "mod_enable" => SwitchControl { cc: 50, addr: 32 + 50, ..def() },
-        "delay_enable" => SwitchControl { cc: 28, addr: 32 + 28, ..def() },
-        "reverb_enable" => SwitchControl { cc: 36, addr: 32 + 36, ..def() },
         "amp_enable" => SwitchControl { cc: 111, addr: 32 + 111, inverted: true },
         "compressor_enable" => SwitchControl { cc: 26, addr: 32 + 26, ..def() },
         "tuner_enable" => MidiSwitchControl { cc: 69 },
@@ -237,58 +381,62 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         "compressor_gain" => RangeControl { cc: 5, addr: 32 + 5,
             format: Format::Data(FormatData { k: 16.0/127.0, b: 0.0, format: "{val:1.1f} db".into() }),
             ..def() },
-        // reverb
-        "reverb_select" => Select { cc: 37, addr: 32 + 37, ..def() },
-        "reverb_decay" => RangeControl { cc: 38, addr: 32 + 38, format: fmt_percent!(), ..def() },
-        "reverb_tone" => RangeControl { cc: 39, addr: 32 + 39, format: fmt_percent!(), ..def() },
-        "reverb_pre_delay" => RangeControl { cc: 40, addr: 32 + 40, format: fmt_percent!(), ..def() },
-        "reverb_level" => RangeControl { cc: 18, addr: 32 + 18, format: fmt_percent!(), ..def() },
-        // stomp
-        "stomp_select" => Select { cc: 75, addr: 32 + 75, ..def() },
-        "stomp_param2" => RangeControl { cc: 79, addr: 32 + 79, format: fmt_percent!(), ..def() },
-        "stomp_param3" => RangeControl { cc: 80, addr: 32 + 80, format: fmt_percent!(), ..def() },
-        "stomp_param4" => RangeControl { cc: 81, addr: 32 + 81, format: fmt_percent!(), ..def() },
-        "stomp_param5" => RangeControl { cc: 82, addr: 32 + 82, format: fmt_percent!(), ..def() },
-        "stomp_param6" => RangeControl { cc: 83, addr: 32 + 83, format: fmt_percent!(), ..def() },
-        // mod
-        "mod_select" => Select { cc: 58, addr: 32 + 58, ..def() },
-        "mod_speed" => VirtualRangeControl {
-            config: long!(0, 16383),
-            format: Format::Data(FormatData { k: 14.9/16383.0, b: 0.1, format: "{val:1.2f} Hz".into() }),
-            ..def() },
-        "mod_speed:msb" => RangeControl { cc: 29, addr: 32 + 29, ..def() },
-        "mod_speed:lsb" => RangeControl { cc: 61, addr: 32 + 61, ..def() },
-        "mod_param2" => RangeControl { cc: 52, addr: 32 + 52, format: fmt_percent!(), ..def() },
-        "mod_param3" => RangeControl { cc: 53, addr: 32 + 53, format: fmt_percent!(), ..def() },
-        "mod_param4" => RangeControl { cc: 54, addr: 32 + 54, format: fmt_percent!(), ..def() },
-        "mod_mix" => RangeControl { cc: 56, addr: 32 + 56, format: fmt_percent!(), ..def() },
-        // delay
-        "delay_select" => Select { cc: 88, addr: 32 + 88, ..def() },
-        "delay_time" => VirtualRangeControl {
-            config: long!(0, 16383),
-            format: Format::Data(FormatData { k: 1980.0/16383.0, b: 20.0, format: "{val:1.0f} ms".into() }),
-            ..def() },
-        "delay_time:msb" => RangeControl { cc: 30, addr: 32 + 30, ..def() },
-        "delay_time:lsb" => RangeControl { cc: 62, addr: 32 + 62, ..def() },
-        "delay_param2" => RangeControl { cc: 33, addr: 32 + 33, format: fmt_percent!(), ..def() },
-        "delay_param3" => RangeControl { cc: 35, addr: 32 + 35, format: fmt_percent!(), ..def() },
-        "delay_param4" => RangeControl { cc: 85, addr: 32 + 85, format: fmt_percent!(), ..def() },
-        "delay_mix" => RangeControl { cc: 34, addr: 32 + 34, format: fmt_percent!(), ..def() },
         // volume pedal
         "vol_level" => RangeControl { cc: 7, addr: 32 + 7, format: fmt_percent!(), ..def() },
         // wah
         "wah_select" => Select { cc: 91, addr: 32 + 91, ..def() },
         "wah_level" => RangeControl { cc: 4, addr: 32 + 4, format: fmt_percent!(), ..def() },
+
+        // --- 4 freely-assignable FX slots ---------------------------------
+        // Select/enable carry inert cc keys (read-only viewer; cc <= 127, away
+        // from the device's real CCs 1/2/49-69). The per-slot param controls are
+        // added below as VirtualRangeControls (no cc/addr → MIDI-silent, and no
+        // cc-space limit), since the param widgets are built dynamically.
+        "fx1_select" => Select { cc: 72, addr: 32 + 72, ..def() },
+        "fx1_enable" => SwitchControl { cc: 73, addr: 32 + 73, ..def() },
+        "fx2_select" => Select { cc: 82, addr: 32 + 82, ..def() },
+        "fx2_enable" => SwitchControl { cc: 83, addr: 32 + 83, ..def() },
+        "fx3_select" => Select { cc: 93, addr: 32 + 93, ..def() },
+        "fx3_enable" => SwitchControl { cc: 94, addr: 32 + 94, ..def() },
+        "fx4_select" => Select { cc: 103, addr: 32 + 103, ..def() },
+        "fx4_enable" => SwitchControl { cc: 104, addr: 32 + 104, ..def() },
+
+        // --- fixed blocks not previously modelled -------------------------
+        "volume_enable" => SwitchControl { cc: 114, addr: 32 + 114, ..def() },
+        "volume_position" => SwitchControl { cc: 115, addr: 32 + 115, ..def() },
+        // Preset EQ is the dedicated EQ block; it carries a model selector (EQ
+        // type). Its params are native dB/Hz units (not 0..1), so they're not
+        // surfaced on percent sliders yet — selector + enable only for now.
+        "preset_eq_select" => Select { cc: 116, addr: 32 + 116, ..def() },
+        "preset_eq_enable" => SwitchControl { cc: 117, addr: 32 + 117, ..def() },
+        "fx_loop_enable" => SwitchControl { cc: 118, addr: 32 + 118, ..def() },
+        "fx_loop_mix" => RangeControl { cc: 119, addr: 32 + 119, format: fmt_percent!(), ..def() },
+
         // name change button
         "name_change" => Button {},
     ));
+
+    // Per-slot FX param value holders. Virtual (no cc/addr) so they emit no
+    // MIDI and aren't cc-space-limited; the param widgets that display them are
+    // built dynamically per selected model (up to MAX_FX_PARAMS each).
+    for n in 1..=4 {
+        for k in 1..=MAX_FX_PARAMS {
+            controls.insert(
+                format!("fx{n}_param{k}"),
+                VirtualRangeControl { format: fmt_percent!(), ..def() }.into(),
+            );
+        }
+    }
 
     Config {
         name: "POD Go".to_string(),
         family: 0x0021,
         member: 0x0007,
 
-        program_size: 72 * 2 + 16,
+        // Large enough to cover every control's (inert) addr; POD Go never
+        // uses the standard buffer-dump path, so this is just a safe upper
+        // bound for the per-control addr writes on UI edits. Max addr = 151.
+        program_size: 256,
         program_num: 128,
         program_name_addr: 0,
         program_name_length: 16,
@@ -306,10 +454,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         init_controls: convert_args!(vec!(
             "amp_select",
             "cab_select",
-            "reverb_select",
-            "stomp_select",
-            "mod_select",
-            "delay_select",
+            "fx1_select",
+            "fx2_select",
+            "fx3_select",
+            "fx4_select",
             "wah_select",
             "noise_gate_enable",
             "tuner_enable",
