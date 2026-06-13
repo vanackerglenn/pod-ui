@@ -8,6 +8,8 @@ mod module;
 // stays a generic transport layer. `preset_parser` is public so the
 // reverse-engineering examples in examples/ can use it.
 mod podgo;
+mod podgo_session;
+mod protocol;
 mod current_preset;
 pub mod preset_parser;
 
