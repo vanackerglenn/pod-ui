@@ -21,8 +21,8 @@ impl Handler for PodGoHandler {
         let dump = ctx.dump.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            pod_usb::podgo_preset_names_init();
-            if let Some(names) = pod_usb::podgo_preset_names() {
+            crate::podgo::fetch_and_cache();
+            if let Some(names) = crate::podgo::preset_names() {
                 let mut dump = dump.lock().unwrap();
                 for (idx, name) in names {
                     dump.set_name(*idx as usize, name.clone(), Origin::MIDI);
@@ -54,7 +54,7 @@ impl Handler for PodGoHandler {
                     tokio::time::sleep(Duration::from_millis(500)).await;
 
                     let preset = tokio::task::spawn_blocking(move || {
-                        pod_usb::podgo_read_current_preset()
+                        crate::current_preset::read_current_preset_inprocess()
                     }).await.ok().flatten();
 
                     if let Some(ref preset) = preset {
@@ -161,7 +161,7 @@ fn num_program(p: &Program) -> Option<usize> {
 
 fn sync_controller_from_preset(
     controller: &Arc<Mutex<Controller>>,
-    preset: &pod_usb::PresetData,
+    preset: &crate::preset_parser::PresetData,
 ) {
     for m in &preset.modules {
         info!("sync: module '{}' category '{}' slot {} bypassed={} params={:?}",
@@ -175,14 +175,14 @@ fn sync_controller_from_preset(
     // Walk the chain in slot order: fixed blocks go to their dedicated
     // controls; everything else is an assignable effect that fills the next
     // free FX slot (POD Go has four).
-    let mut modules: Vec<&pod_usb::ModuleInfo> = preset.modules.iter().collect();
+    let mut modules: Vec<&crate::preset_parser::ModuleInfo> = preset.modules.iter().collect();
     modules.sort_by_key(|m| m.slot);
 
     let mut next_fx_slot = 0usize; // 0-based; slots 0..=3 map to fx1..fx4
     for m in &modules {
         let enable = if m.bypassed { 0u16 } else { 1u16 };
 
-        if pod_usb::is_fixed_block_category(&m.category, &m.name) {
+        if crate::preset_parser::is_fixed_block_category(&m.category, &m.name) {
             match m.category.as_str() {
                 "Amp" => {
                     set_select(controller, "amp_select",
@@ -273,7 +273,7 @@ fn sync_fx_params(
     controller: &Arc<Mutex<Controller>>,
     slot: usize,
     model_name: &str,
-    params: &[pod_usb::ParamValue],
+    params: &[crate::preset_parser::ParamValue],
 ) {
     let Some(model) = FX_MODELS.iter().find(|m| m.name == model_name) else {
         return;
@@ -287,10 +287,10 @@ fn sync_fx_params(
         // directly onto the 0..=127 percent controls. Native-unit params
         // (Hz/dB/counts) don't fit those controls yet, so skip them for now.
         let value: u16 = match pv {
-            pod_usb::ParamValue::Float(f) if (0.0..=1.0).contains(f) => {
+            crate::preset_parser::ParamValue::Float(f) if (0.0..=1.0).contains(f) => {
                 (*f * 127.0).round() as u16
             }
-            pod_usb::ParamValue::Bool(b) => if *b { 127 } else { 0 },
+            crate::preset_parser::ParamValue::Bool(b) => if *b { 127 } else { 0 },
             other => {
                 info!("sync: {} = {:?} not a 0..1 value; needs a dedicated control, skipped", key, other);
                 continue;

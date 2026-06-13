@@ -22,6 +22,21 @@ and **0x81 (IN)**. (Interface 4 is MIDI; interfaces 2/3 are USB audio.)
 3. (Reduce noise) In Windows *Sound settings*, set playback/recording to NOT use
    the POD Go while capturing, so the audio interface doesn't flood the capture.
 
+## 1b. Make sure you're on the right USB interface/device
+USBPcap captures per **root hub**, not per device, so pick the hub the POD Go is
+on, then confirm:
+1. In Wireshark's interface list, expand a `USBPcap1/2/3…` interface (or open its
+   capture options) to see the device tree; look for **"POD Go" / "Line 6"**.
+   (`USBPcapCMD.exe` prints the same tree with names.)
+2. To be certain: start capturing, then **unplug+replug the POD Go**, and filter
+   `usb.idVendor == 0x0e41 && usb.idProduct == 0x4247`. Hits = right interface.
+   Note that packet's `usb.device_address` (e.g. 5).
+3. Working filter for the vendor protocol:
+   `usb.device_address == 5 && (usb.endpoint_address == 0x01 || usb.endpoint_address == 0x81)`.
+Gotchas: `device_address` changes on replug/reboot (re-check); during a firmware
+update the device re-enumerates into a bootloader with a different address/ID —
+capture the whole hub UNFILTERED for that one.
+
 ## 2. Start a capture
 1. Open Wireshark → in the interface list, double-click a **USBPcap** interface
    (USBPcap1, USBPcap2, …). If you don't know which, pick one; the POD Go is on

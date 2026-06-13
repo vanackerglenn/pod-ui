@@ -13,43 +13,43 @@ use crate::model::*;
 pub const MAX_FX_PARAMS: usize = 12;
 
 pub static AMP_MODELS: Lazy<Vec<Amp>> = Lazy::new(|| {
-    pod_usb::all_amp_models().into_iter().map(|n| Amp {
+    crate::preset_parser::all_amp_models().into_iter().map(|n| Amp {
         name: n.to_string(),
         ..Default::default()
     }).collect()
 });
 
 pub static CAB_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::all_cab_models().into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::all_cab_models().into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static REVERB_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Reverb").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Reverb").into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static DELAY_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Delay").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Delay").into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static MOD_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Modulation").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Modulation").into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static DIST_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Distortion").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Distortion").into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static WAH_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Wah").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Wah").into_iter().map(|n| n.to_string()).collect()
 });
 
 pub static DYN_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("Dynamic").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("Dynamic").into_iter().map(|n| n.to_string()).collect()
 });
 
 // EQ models for the dedicated Preset EQ block.
 pub static EQ_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    pod_usb::models_by_category("EQ").into_iter().map(|n| n.to_string()).collect()
+    crate::preset_parser::models_by_category("EQ").into_iter().map(|n| n.to_string()).collect()
 });
 
 // module parameter labels
@@ -228,7 +228,7 @@ pub static FX_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
     let mut v = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for cat in FX_CATEGORIES {
-        for name in pod_usb::models_by_category(cat) {
+        for name in crate::preset_parser::models_by_category(cat) {
             // The model DB has a few same-named entries (e.g. two
             // "4 OSC Generator" type ids); keep names unique so the combo
             // index used by position() lookups stays stable.

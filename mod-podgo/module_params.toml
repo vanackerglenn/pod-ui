@@ -15,9 +15,39 @@
 #   int       - integer count
 #   unknown   - placeholder until you check
 #
+# WIDGET RENDERING (current behavior — mod-podgo/src/module.rs):
+#   bool                   -> checkbox
+#   enum WITH options=[..]  -> dropdown of those labels
+#   everything else (percent/db/hz/ms/time/semitones/int, enum w/o options)
+#                          -> plain 0..127 slider
+# So today only `bool` and `enum`+options look different; the numeric units are
+# RECORDED but not yet formatted/scaled (unit-aware display is a pending TODO) —
+# fill them anyway so it "just works" once that lands.
+#
+# NOTE-DIVISIONS ("1/4", "1/8 dotted", ...): on the wire these are a normalized
+# float the device quantizes to steps. To SEE the labels now, use enum + options.
+# `time` is the semantically-correct kind but currently renders as a bare slider.
+#
 # Leave `params = []` for modules not done yet. Fill order matters — the device
 # emits param VALUES positionally, so the Nth entry here maps to the Nth value.
 # One example (Gray Flanger) is filled to show the format; verify its kinds too.
+#
+# ---- REFERENCE: a made-up module exercising EVERY kind (commented out; not -----
+# ---- parsed — copy/adapt the lines you need). enum REQUIRES options=[..]. ------
+# [[module]]
+# category = "Distortion"
+# name = "Example All-Kinds"          # the name must match the device model name
+# params = [
+#   { name = "Drive",   kind = "percent" },                                  # 0..100%
+#   { name = "Level",   kind = "db" },                                       # decibels
+#   { name = "Tone",    kind = "hz" },                                       # frequency
+#   { name = "Attack",  kind = "ms" },                                       # milliseconds
+#   { name = "Rate",    kind = "time" },                                     # tempo/note-division (bare slider for now)
+#   { name = "Pitch",   kind = "semitones" },                               # pitch
+#   { name = "Wave",    kind = "enum", options = ["Sine", "Square", "Triangle"] },  # dropdown
+#   { name = "Boost",   kind = "bool" },                                     # checkbox
+#   { name = "Heads",   kind = "int" },                                      # integer count
+# ]
 
 
 # ========== Distortion (36) ==========

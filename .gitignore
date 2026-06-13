@@ -3,3 +3,10 @@
 .*.sw?
 *~
 /testing/usb/target*
+
+# POD Go reverse-engineering artifacts — plans, protocol/RE notes, and USB captures.
+# Working material, not shipped with the repo.
+/docs/
+/usb/docs/
+/mod-podgo/captures/
+/mod-podgo/examples/

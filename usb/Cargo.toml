@@ -8,8 +8,6 @@ rust-version.workspace = true
 [dependencies]
 rusb = "0.9.4"
 structbuf = "0.3.4"
-rmpv = "=1.0.1"
-rmp = "=0.8.12"
 
 async-trait = "*" # defined in pod-core
 log = "*" # defined in pod-core

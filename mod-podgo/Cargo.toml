@@ -8,6 +8,12 @@ rust-version.workspace = true
 [dependencies]
 hibitset = "0.6.3"
 
+# POD Go device-specific USB transport + MessagePack preset parsing
+# (moved here from pod-usb to keep that crate a generic transport layer)
+rusb = "0.9.4"
+rmpv = "=1.0.1"
+rmp = "=0.8.12"
+
 once_cell = "*" # defined in pod-core
 maplit = "*" # defined in pod-mod-pod2
 log = "*" # defined in pod-core
