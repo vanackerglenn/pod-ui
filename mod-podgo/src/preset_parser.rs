@@ -331,14 +331,48 @@ pub struct ModuleInfo {
     pub slot: u8,
     pub bypassed: bool,
     pub type_id: String,
+    /// The numeric model id, from the block's chain meta (`block[20][24][25]`).
+    ///
+    /// **This is an index into `PodGo.sym`**, which is why it identifies a
+    /// model exactly: `PodGo.sym[model_id]` is the model's `symbolicID`, and
+    /// that keys straight into Line 6's `*.models` data. Verified against every
+    /// block of the captured A30 Fawn Brt preset (see `models_db`).
+    ///
+    /// Note this is *not* `KEY_ID` (key 6), which is not a model id at all —
+    /// two different blocks in that preset share the value 0x0084FF00.
+    pub model_id: Option<u64>,
     pub parameters: Vec<ParamValue>,
 }
 
 // === Full Preset Data ===
 
+/// One position in the signal chain, described entirely by what the preset
+/// says is there.
+///
+/// This is the unit the UI works in. A position needs no category to be
+/// displayed: its model id names the model, and the values are already in
+/// order. Categories only matter when *changing* a block's model.
+#[derive(Debug, Clone, Default)]
+pub struct ChainSlot {
+    /// The model here, or `None` if the position is empty.
+    pub model_id: Option<u64>,
+    /// The display name, when the preset carries one. Amp and Cab blocks have
+    /// none — their name comes from resolving `model_id`.
+    pub name: Option<String>,
+    pub bypassed: bool,
+    pub parameters: Vec<ParamValue>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PresetData {
     pub modules: Vec<ModuleInfo>,
+    /// Every position in the chain, in order. Indexed by slot.
+    ///
+    /// Positions are *read*, never inferred. A block the parser can't name
+    /// still appears here with its model id, so nothing can take its place —
+    /// an unrecognised block used to leave a hole that shifted everything after
+    /// it one position left.
+    pub chain: Vec<ChainSlot>,
     pub footswitches: Vec<FootSwitchInfo>,
 }
 
@@ -400,17 +434,31 @@ pub fn parse_preset_data(data: &[u8]) -> PresetData {
         .and_then(|m| map_get(m, 22))
         .and_then(|v| v.as_array());
     if let Some(chain) = chain {
+        preset.chain = chain
+            .iter()
+            .map(|block| ChainSlot {
+                model_id: chain_block_model_id(block),
+                parameters: extract_params(block),
+                ..Default::default()
+            })
+            .collect();
         for m in &mut preset.modules {
             if let Some(block) = chain.get(m.slot as usize) {
                 m.parameters = extract_params(block);
+                m.model_id = chain_block_model_id(block);
             }
         }
 
         // Amp & Cab blocks carry no named entry in root[3][8]; their identity
         // lives only in the chain meta (block[20][24][25] = model id). Recover
         // them here so the fixed Amp/Cab selectors populate. The chain index is
-        // the slot. Limited to Amp/Cab — the categories whose small model ids
-        // resolve reliably via the DB.
+        // the slot.
+        //
+        // Resolved through the `PodGo.sym` id table, not `MODULE_DB` — the
+        // latter's numbering does not match what the device puts in the chain
+        // meta, so it identified some blocks and silently missed others. A
+        // missed Amp doesn't just blank that block: its slot then looks free, an
+        // empty FX block claims it, and every block after it shifts position.
         let known_slots: std::collections::HashSet<u8> =
             preset.modules.iter().map(|m| m.slot).collect();
         for (slot, block) in chain.iter().enumerate() {
@@ -418,19 +466,32 @@ pub fn parse_preset_data(data: &[u8]) -> PresetData {
                 continue;
             }
             let Some(id) = chain_block_model_id(block) else { continue; };
-            let hex = format_type_id(id);
-            if let Some((cat, name)) = lookup_module_type(&hex) {
-                if matches!(cat, "Amp" | "Cab") {
-                    preset.modules.push(ModuleInfo {
-                        name: name.to_string(),
-                        category: cat.to_string(),
-                        slot: slot as u8,
-                        bypassed: false,
-                        type_id: hex,
-                        parameters: extract_params(block),
-                    });
-                }
-            }
+            let Some(model) = crate::models_db::DB.by_wire_id(id) else { continue; };
+            // Only the blocks that have no name of their own; everything else
+            // was already collected above.
+            let category = match model.category {
+                "Amp" | "Preamp" => "Amp",
+                "Cab" | "Cab/IR" => "Cab",
+                _ => continue,
+            };
+            preset.modules.push(ModuleInfo {
+                name: model.name.clone(),
+                category: category.to_string(),
+                slot: slot as u8,
+                bypassed: false,
+                type_id: format_type_id(id),
+                model_id: Some(id),
+                parameters: extract_params(block),
+            });
+        }
+    }
+
+    // Fold what the named entries know (display name, bypass state) into the
+    // chain, so a position carries everything about itself in one place.
+    for m in &preset.modules {
+        if let Some(slot) = preset.chain.get_mut(m.slot as usize) {
+            slot.name = Some(m.name.clone());
+            slot.bypassed = m.bypassed;
         }
     }
 
@@ -440,7 +501,9 @@ pub fn parse_preset_data(data: &[u8]) -> PresetData {
 }
 
 /// Locate and decode the inner preset map from the raw transfer bytes.
-fn parse_preset_value(data: &[u8]) -> Option<Value> {
+/// Decode the preset map out of a raw dump. Public so the `podgo_inspect_slot`
+/// example can walk the same structure the parser sees.
+pub fn parse_preset_value(data: &[u8]) -> Option<Value> {
     // The payload stream begins with the "l6-helix" marker string. Back up one
     // byte to include its MessagePack fixstr header (0xa9) and decode from there.
     let marker = b"l6-helix";
@@ -491,14 +554,49 @@ fn extract_params(block: &Value) -> Vec<ParamValue> {
     best.map(|arr| arr.iter().map(value_to_param).collect()).unwrap_or_default()
 }
 
-/// A chain block's model id, stored in its meta sub-map at key 20 -> 24 -> 25.
-/// Used to recover blocks (Amp/Cab) that have no named entry elsewhere.
+/// A chain block's model id, read from its meta map (key 20).
+///
+/// The meta's shape depends on the kind of block — key 19 differs too, and
+/// looks like a type discriminator — so the id sits in one of two places:
+///
+/// ```text
+///   most blocks                     looper blocks
+///     19: 6                           19: 7
+///     20:                             20:
+///       24:                             8: 127        <- id, directly
+///         25: 100   <- id               9: 22
+///       11: { 4: [values] }             7: { 4: [values] }
+/// ```
+///
+/// Both layouts are observed, not guessed: the nested one from the captured
+/// A30 Fawn Brt preset, the flat one from a preset holding a 6 Switch Looper
+/// (id 127 = `HD2_LooperMono`). A block whose id is in neither place is logged
+/// with its meta keys, so a third layout identifies itself instead of silently
+/// showing an empty position.
 fn chain_block_model_id(block: &Value) -> Option<u64> {
-    as_map(block)
-        .and_then(|m| map_get(m, 20)).and_then(as_map)
-        .and_then(|m| map_get(m, 24)).and_then(as_map)
-        .and_then(|m| map_get(m, 25)).and_then(|v| v.as_u64())
+    let meta = as_map(block).and_then(|m| map_get(m, 20)).and_then(as_map)?;
+
+    // The common layout: nested under key 24.
+    let nested = map_get(meta, 24)
+        .and_then(as_map)
+        .and_then(|m| map_get(m, 25))
+        .and_then(|v| v.as_u64());
+    if let Some(id) = nested {
+        return Some(id);
+    }
+    // The looper layout: the id sits directly at key 8.
+    if let Some(id) = map_get(meta, 8).and_then(|v| v.as_u64()) {
+        return Some(id);
+    }
+
+    let keys: Vec<u64> = meta.iter().filter_map(|(k, _)| k.as_u64()).collect();
+    log::warn!(
+        "preset: chain block (type {:?}) has no model id at 20->24->25 or 20->8; meta keys {keys:?}",
+        as_map(block).and_then(|m| map_get(m, 19)).and_then(|v| v.as_u64())
+    );
+    None
 }
+
 
 fn value_to_param(v: &Value) -> ParamValue {
     match v {
@@ -633,42 +731,12 @@ fn module_from_map(entries: &[(Value, Value)]) -> Option<ModuleInfo> {
         slot,
         bypassed,
         type_id,
+        // Filled in from the chain meta once the chain array is in hand.
+        model_id: None,
         // Parameter values are decoded in a later stage; the chain block float
         // arrays (preset[0][22][..]) are not yet mapped onto the param controls.
         parameters: vec![],
     })
-}
-
-/// Every `(numeric model id, category, name)` in [`MODULE_DB`], with the
-/// msgpack-hex keys decoded back to the integers the device puts on the wire.
-///
-/// These ids are the only identifier an Amp or Cab block has: a loaded preset
-/// carries name strings for the FX blocks but *nothing* for Amp/Cab, so their
-/// names are reconstructed from this table. `models_db` keys on the same ids.
-pub fn module_db_entries() -> impl Iterator<Item = (u64, &'static str, &'static str)> {
-    MODULE_DB
-        .iter()
-        .filter_map(|(hex, (cat, name))| Some((parse_type_id(hex)?, *cat, *name)))
-}
-
-/// Inverse of [`format_type_id`]: msgpack-hex back to the integer id.
-fn parse_type_id(hex: &str) -> Option<u64> {
-    let bytes: Vec<u8> = (0..hex.len())
-        .step_by(2)
-        .filter_map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok())
-        .collect();
-    match *bytes.first()? {
-        b if b < 0x80 => Some(b as u64),
-        0xcc => bytes.get(1).map(|&b| b as u64),
-        0xcd => Some(u16::from_be_bytes([*bytes.get(1)?, *bytes.get(2)?]) as u64),
-        0xce => Some(u32::from_be_bytes([
-            *bytes.get(1)?,
-            *bytes.get(2)?,
-            *bytes.get(3)?,
-            *bytes.get(4)?,
-        ]) as u64),
-        _ => None,
-    }
 }
 
 /// Reconstruct the MessagePack-byte hex form of an integer id (matching
@@ -730,6 +798,13 @@ pub fn all_effect_models() -> Vec<&'static str> {
 /// NOTE: EQ can be EITHER the dedicated Preset EQ block OR an EQ used in an FX
 /// slot; the two are only distinguishable by chain position (TBD on hardware),
 /// so EQ is currently NOT treated as fixed here.
+/// Whether a block is one of POD Go's *dedicated* blocks — the ones that exist
+/// exactly once per preset and have their own controls (Wah, Volume, Amp, Cab,
+/// Preset EQ, FX Loop), as opposed to the four freely-assignable FX slots.
+///
+/// "Dedicated" is about identity, not position: every one of these can be moved
+/// around the chain, and where it sits comes from the preset's slot, never from
+/// this function.
 pub fn is_fixed_block_category(category: &str, name: &str) -> bool {
     match category {
         "Amp" | "Cab" | "Wah" | "Vol/Pan" => true,
@@ -758,17 +833,69 @@ mod tests {
 
     // Integration check against a real captured preset, when present. Skips on
     // machines without the capture (e.g. CI). Capture via PODGO_DUMP=1.
+    /// Both observed chain-meta layouts yield the model id.
+    ///
+    /// Most blocks nest it at `20 -> 24 -> 25`; looper blocks put it directly
+    /// at `20 -> 8`. Reading only the first shape made a looper resolve to
+    /// nothing — it displayed as an empty position even though the preset named
+    /// it. The values here are the ones dumped from real presets.
+    #[test]
+    fn model_id_is_found_in_both_meta_layouts() {
+        use rmpv::Value;
+        let n = |v: u64| Value::Integer(v.into());
+        let map = |entries: Vec<(u64, Value)>| {
+            Value::Map(entries.into_iter().map(|(k, v)| (n(k), v)).collect())
+        };
+
+        // LA Studio Comp: 20 -> 24 -> 25 = 100.
+        let nested = map(vec![
+            (19, n(6)),
+            (20, map(vec![(24, map(vec![(25, n(100))])), (9, n(1))])),
+        ]);
+        assert_eq!(chain_block_model_id(&nested), Some(100));
+
+        // 6 Switch Looper Mono: 20 -> 8 = 127.
+        let flat = map(vec![
+            (19, n(7)),
+            (20, map(vec![(8, n(127)), (9, n(22))])),
+        ]);
+        assert_eq!(chain_block_model_id(&flat), Some(127));
+        // ...and 127 really is the looper, via the same id table the UI uses.
+        assert_eq!(
+            crate::models_db::DB.by_wire_id(127).map(|m| m.symbolic_id.as_str()),
+            Some("HD2_LooperMono")
+        );
+
+        // A shape with the id in neither place resolves to nothing rather than
+        // to a wrong model.
+        let unknown = map(vec![(19, n(9)), (20, map(vec![(9, n(1))]))]);
+        assert_eq!(chain_block_model_id(&unknown), None);
+    }
+
     #[test]
     fn parses_amp_cab_from_captured_preset() {
-        let path = "/tmp/podgo_preset.bin";
-        if !std::path::Path::new(path).exists() {
-            eprintln!("skipping: {path} not present");
-            return;
-        }
-        let data = std::fs::read(path).unwrap();
-        let preset = parse_preset_data(&data);
-        let has = |cat: &str| preset.modules.iter().any(|m| m.category == cat);
-        assert!(has("Amp"), "expected an Amp block to be recovered from chain meta");
-        assert!(has("Cab"), "expected a Cab block to be recovered from chain meta");
+        // Amp and Cab have no name in the preset; they are recovered from the
+        // chain meta's model id via the PodGo.sym table.
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = parse_preset_data(data);
+
+        let find = |cat: &str| preset.modules.iter().find(|m| m.category == cat);
+        let amp = find("Amp").expect("an Amp block recovered from chain meta");
+        let cab = find("Cab").expect("a Cab block recovered from chain meta");
+        assert_eq!(amp.name, "A30 Fawn Brt");
+        assert_eq!(cab.name, "2x12 Blue Bell");
+
+        // Every chain position is accounted for. A block the parser fails to
+        // recover leaves its slot looking free, an empty FX block then claims
+        // that slot, and every block after it shifts one place in the UI — so a
+        // gap here is a reordering bug, not just a missing block.
+        let mut slots: Vec<u8> = preset.modules.iter().map(|m| m.slot).collect();
+        slots.sort_unstable();
+        assert_eq!(
+            slots,
+            (1..=10).collect::<Vec<u8>>(),
+            "every slot of this preset should be filled, with no gaps"
+        );
     }
+
 }

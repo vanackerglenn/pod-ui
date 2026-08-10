@@ -6,7 +6,25 @@
 //! are: POD Go Edit ships its own model database, and `mod-podgo/data/` is a
 //! copy of it. This module is the loader.
 //!
-//! The three inputs, and what each is authoritative for:
+//! Nothing here matches on display names. Names are ambiguous — `eq.models`
+//! lists two "Parametric"s, `Sweep Echo` is both an HD2 and a DL4 model, and
+//! most cab names appear in both `cab.models` and `cabmicirs.models` — and the
+//! device names several blocks differently from the files anyway ("Volume
+//! Pedal" is `Volume`, "Mono FX Loop" is `FX Loop 1`). The wire id sidesteps
+//! all of it.
+//!
+//! The four inputs, and what each is authoritative for:
+//!
+//! - `PodGo.sym` — **the model id table**. Its entries are `symbolicID`s and an
+//!   entry's *array position is the numeric model id* the device puts in a
+//!   block's chain meta. This is what makes lookup exact: `id` →
+//!   `PodGo.sym[id]` → `symbolicID` → the `*.models` entry, with no name
+//!   matching anywhere. Verified against every block of the captured A30 Fawn
+//!   Brt preset: 239→`HD2_WahFasselStereo`, 224→`HD2_VolPanVolStereo`,
+//!   119→`HD2_FXLoopMono1`, 94→`HD2_DistTopSecretODMono`, 7→`HD2_AmpA30FawnBrt`,
+//!   53→`HD2_Cab2x12BlueBell`, 100→`HD2_CompressorLAStudioCompMono`,
+//!   86→`HD2_DelayTransistorTapeStereo`, 210→`HD2_ReverbRoomStereo`,
+//!   472→`HD2_EQ_STATIC_ParametricStereo`.
 //!
 //! - `*.models` — one file per category. 574 models, 5723 params, each with a
 //!   `name`, a `valueType`, a DSP `min`/`max`/`default` and a `displayType`.
@@ -91,6 +109,9 @@ static MODELS_FILES: &[(&str, &str)] = models_files![
 ];
 
 static CONTROLS_JSON: &str = include_str!("../data/PGControls.json");
+/// The model id table: `PodGo.sym[id]` is the `symbolicID` of the model the
+/// device calls `id`. Its array position *is* the wire id.
+static SYM_JSON: &str = include_str!("../data/PodGo.sym");
 static CATALOG_JSON: &str = include_str!("../data/PGModelCatalog.json");
 
 /// POD Go Edit's category names mapped onto the ones pod-ui already uses
@@ -161,6 +182,12 @@ struct RawControl {
     format_units: Option<J>,
 }
 
+/// One entry of `PodGo.sym`. Its index in the file is the model's wire id.
+#[derive(Deserialize)]
+struct SymEntry {
+    symbol: String,
+}
+
 #[derive(Deserialize)]
 struct RawCatalog {
     categories: Vec<RawCategory>,
@@ -192,10 +219,9 @@ pub struct Model {
 
 pub struct ModelDb {
     models: Vec<Model>,
-    /// Numeric wire model id -> index into `models`. **The primary key.** Every
-    /// block in a preset carries one; Amp and Cab blocks carry *nothing else*
-    /// (a loaded patch has no name string for them at all — see the capture
-    /// notes on [`id_to_name`]).
+    /// Numeric wire model id -> index into `models`. **The primary key**, built
+    /// by walking `PodGo.sym`: entry `n` of that file names the model with id
+    /// `n`. Exact and unambiguous — no name matching involved.
     by_id: HashMap<u64, usize>,
     /// Normalized display name -> indices into `models`. The fallback, for
     /// blocks whose id isn't in the id table yet. A name can map to several
@@ -285,47 +311,35 @@ impl ModelDb {
         for (i, m) in models.iter().enumerate() {
             by_name.entry(normalize(&m.name)).or_default().push(i);
         }
-        // The numeric id index: join the wire ids pod-ui already knows onto the
-        // models. Names are matched normalized, and a name shared by two models
-        // is settled by the category the id is filed under rather than guessed.
+        // symbolicID -> index, then the id table itself. `PodGo.sym` is an
+        // ordered list of symbols whose position is the model id the device
+        // puts in a block's chain meta, so this is a direct join with no
+        // name or param-count guessing anywhere.
+        let by_symbol: HashMap<&str, usize> = models
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.symbolic_id.as_str(), i))
+            .collect();
         let mut by_id: HashMap<u64, usize> = HashMap::new();
-        for (id, category, name) in crate::preset_parser::module_db_entries() {
-            let Some(candidates) = by_name.get(&normalize(name)) else { continue };
-            let pick = match candidates.len() {
-                1 => Some(candidates[0]),
-                _ => {
-                    let matching: Vec<usize> = candidates
-                        .iter()
-                        .copied()
-                        .filter(|&i| models[i].category == category)
-                        .collect();
-                    match matching.as_slice() {
-                        [one] => Some(*one),
-                        // Several models with the same name *and* category. If
-                        // they describe identical params (the files list a few
-                        // models twice, e.g. "Parametric" in eq.models) the tie
-                        // is cosmetic and either will do; otherwise it is a real
-                        // ambiguity and mapping the id would be a guess.
-                        [first, rest @ ..] => {
-                            let sig = |i: usize| {
-                                models[i]
-                                    .spec
-                                    .iter()
-                                    .map(|p| p.name.as_str())
-                                    .collect::<Vec<_>>()
-                            };
-                            rest.iter().all(|&i| sig(i) == sig(*first)).then_some(*first)
-                        }
-                        [] => None,
+        match serde_json::from_str::<Vec<SymEntry>>(SYM_JSON) {
+            Ok(syms) => {
+                for (id, sym) in syms.iter().enumerate() {
+                    if let Some(&i) = by_symbol.get(sym.symbol.as_str()) {
+                        by_id.insert(id as u64, i);
                     }
                 }
-            };
-            if let Some(i) = pick {
-                by_id.insert(id, i);
             }
+            Err(e) => log::error!("failed to parse PodGo.sym: {e}"),
         }
 
         ModelDb { models, by_id, by_name }
+    }
+
+    /// Every `(wire id, model)` pair, ascending by id.
+    pub fn entries_by_id(&self) -> impl Iterator<Item = (u64, &Model)> {
+        let mut ids: Vec<u64> = self.by_id.keys().copied().collect();
+        ids.sort_unstable();
+        ids.into_iter().map(move |id| (id, &self.models[self.by_id[&id]]))
     }
 
     /// The model for a numeric wire id. This is the identifier every preset
@@ -627,19 +641,49 @@ mod tests {
         }
     }
 
+    /// The id table itself: every wire id observed in the captured A30 Fawn Brt
+    /// preset resolves to the model that preset's block actually is.
+    ///
+    /// This is the whole lookup contract. If `PodGo.sym`'s ordering ever stops
+    /// being the id space, these are the assertions that fail.
     #[test]
-    fn every_known_wire_id_maps_to_exactly_one_model() {
-        let known = crate::preset_parser::module_db_entries().count();
-        let mapped = crate::preset_parser::module_db_entries()
-            .filter(|(id, _, _)| DB.by_wire_id(*id).is_some())
-            .count();
-        println!("wire ids mapped to a model: {mapped}/{known}");
-        assert!(mapped > 200, "only {mapped} of {known} ids mapped");
+    fn wire_ids_index_podgo_sym() {
+        for (id, symbolic_id, name) in [
+            (239u64, "HD2_WahFasselStereo", "Fassel"),
+            (224, "HD2_VolPanVolStereo", "Volume"),
+            (119, "HD2_FXLoopMono1", "FX Loop 1"),
+            (94, "HD2_DistTopSecretODMono", "Top Secret OD"),
+            (7, "HD2_AmpA30FawnBrt", "A30 Fawn Brt"),
+            (53, "HD2_Cab2x12BlueBell", "2x12 Blue Bell"),
+            (100, "HD2_CompressorLAStudioCompMono", "LA Studio Comp"),
+            (86, "HD2_DelayTransistorTapeStereo", "Transistor Tape"),
+            (210, "HD2_ReverbRoomStereo", "Room"),
+            (472, "HD2_EQ_STATIC_ParametricStereo", "Parametric"),
+        ] {
+            let m = DB.by_wire_id(id).unwrap_or_else(|| panic!("id {id} resolves"));
+            assert_eq!(m.symbolic_id, symbolic_id, "id {id}");
+            assert_eq!(m.name, name, "id {id}");
+        }
+        println!("wire ids in the table: {}", DB.entries_by_id().count());
+    }
 
-        // A shared display name with no id to settle it is refused rather
-        // than guessed — a wrong pick misaligns every positional param.
-        assert_eq!(DB.lookup("Sweep Echo").len(), 2);
-        assert!(DB.resolve(None, "Sweep Echo").is_none());
+    /// Names the id table disambiguates and name matching cannot: the device
+    /// calls these blocks something other than what the files do, or several
+    /// models share the name.
+    #[test]
+    fn ids_resolve_what_names_cannot() {
+        // Two "Parametric"s in eq.models; the id picks the right one.
+        assert_eq!(DB.lookup("Parametric").len(), 2);
+        assert_eq!(DB.by_wire_id(472).unwrap().spec.len(), 12);
+        // The device says "Volume Pedal" / "Mono FX Loop"; the files say
+        // "Volume" / "FX Loop 1". No name bridge needed.
+        assert!(DB.resolve(None, "Volume Pedal").is_none());
+        assert_eq!(DB.by_wire_id(224).unwrap().spec.len(), 2);
+        assert_eq!(DB.by_wire_id(119).unwrap().spec.len(), 4);
+        // Most cab names exist in both cab.models and cabmicirs.models.
+        assert_eq!(DB.lookup("2x12 Blue Bell").len(), 2);
+        assert_eq!(DB.by_wire_id(53).unwrap().category, "Cab");
+        assert_eq!(DB.by_wire_id(53).unwrap().spec.len(), 6);
     }
 
     /// The A30 Fawn Brt capture, block by block: every model resolves and its
@@ -657,15 +701,9 @@ mod tests {
             assert_eq!(m.spec.len(), values, "{name} param count");
         }
 
-        // The preset's EQ block is "Parametric", a name eq.models lists twice —
-        // so only its wire id resolves it. Exactly the case name matching
-        // cannot serve.
-        assert_eq!(DB.lookup("Parametric").len(), 2);
-        assert!(DB.resolve(None, "Parametric").is_none());
-        let (id, _, _) = crate::preset_parser::module_db_entries()
-            .find(|(_, cat, name)| *name == "Parametric" && *cat == "EQ")
-            .expect("Parametric has a wire id");
-        assert_eq!(DB.resolve(Some(id), "").map(|m| m.spec.len()), Some(12));
+        // The preset's EQ block is "Parametric", a name eq.models lists twice,
+        // so only its wire id (472) resolves it — see `wire_ids_index_podgo_sym`.
+        assert_eq!(DB.resolve(Some(472), "").map(|m| m.spec.len()), Some(12));
         // Room's params, in order, are exactly what the capture decoded:
         // [0.58, 0.029, 150.0, 5000.0, 0.29, 0.0, false].
         let room = DB.resolve(None, "Room").unwrap();

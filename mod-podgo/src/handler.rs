@@ -10,7 +10,7 @@ use pod_core::model::AbstractControl;
 use pod_core::store::Store;
 use Origin::{MIDI, UI};
 
-use crate::config::{AMP_MODELS, CAB_MODELS, WAH_MODELS, EQ_MODELS, FX_MODELS, MAX_FX_PARAMS};
+use crate::config::MAX_FX_PARAMS;
 
 pub struct PodGoHandler;
 
@@ -19,8 +19,9 @@ impl Handler for PodGoHandler {
         info!("Pod Go: initialised");
 
         let dump = ctx.dump.clone();
+        let controller = ctx.controller.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            tokio::time::sleep(Duration::from_secs(2)).await;
             crate::podgo::fetch_and_cache();
             if let Some(names) = crate::podgo::preset_names() {
                 let mut dump = dump.lock().unwrap();
@@ -31,6 +32,10 @@ impl Handler for PodGoHandler {
             } else {
                 warn!("No cached preset names available");
             }
+            // Show whatever the device already has loaded, rather than leaving
+            // the panel blank until the user presses Load. Sequential with the
+            // name fetch above: both claim the same USB interface.
+            refresh_from_device(controller, Duration::ZERO, "connect").await;
         });
     }
 
@@ -48,27 +53,26 @@ impl Handler for PodGoHandler {
                 };
                 ctx.app_event_tx.send_or_warn(AppEvent::MidiMsgOut(msg));
 
-                let controller = ctx.controller.clone();
-                let program_num = program;
-                tokio::spawn(async move {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
-
-                    let preset = tokio::task::spawn_blocking(move || {
-                        crate::current_preset::read_current_preset_inprocess()
-                    }).await.ok().flatten();
-
-                    if let Some(ref preset) = preset {
-                        sync_controller_from_preset(&controller, preset);
-                        let names: Vec<String> = preset.modules.iter().map(|m| m.name.clone()).collect();
-                        info!("Preset {} modules: {:?}", program_num, names);
-                    }
-                });
+                // Give the device a moment to act on the program change
+                // before reading back what it loaded.
+                tokio::spawn(refresh_from_device(
+                    ctx.controller.clone(),
+                    Duration::from_millis(500),
+                    "preset load",
+                ));
             }
         }
     }
 
     fn pc_handler(&self, ctx: &Ctx, event: &ProgramChangeEvent) {
         if event.origin == MIDI {
+            // The preset was changed on the device itself. Nothing to send
+            // back, but the edit buffer is now a different patch, so pull it in
+            // — otherwise the UI keeps showing the previous one.
+            let controller = ctx.controller.clone();
+            tokio::spawn(refresh_from_device(
+                controller, Duration::from_millis(500), "device program change",
+            ));
             return;
         }
 
@@ -87,6 +91,16 @@ impl Handler for PodGoHandler {
                 program: program as u8,
             };
             ctx.app_event_tx.send_or_warn(AppEvent::MidiMsgOut(msg));
+
+            // Selecting a preset in the UI arrives here, *not* in
+            // `load_handler` — that only runs for an explicit Load. Sending the
+            // program change switches the device but tells us nothing about
+            // what it now holds, so read the new edit buffer back.
+            tokio::spawn(refresh_from_device(
+                ctx.controller.clone(),
+                Duration::from_millis(500),
+                "program change",
+            ));
         }
     }
 
@@ -152,107 +166,8 @@ impl Handler for PodGoHandler {
     }
 }
 
-fn num_program(p: &Program) -> Option<usize> {
-    match p {
-        Program::ManualMode | Program::Tuner => None,
-        Program::Program(v) => Some(*v as usize),
-    }
-}
 
-fn sync_controller_from_preset(
-    controller: &Arc<Mutex<Controller>>,
-    preset: &crate::preset_parser::PresetData,
-) {
-    for m in &preset.modules {
-        info!("sync: module '{}' category '{}' slot {} bypassed={} params={:?}",
-              m.name, m.category, m.slot, m.bypassed, m.parameters);
-    }
 
-    // Clear managed blocks first so anything absent from this preset doesn't
-    // keep showing stale values from a previously-loaded preset.
-    reset_managed_blocks(controller);
-
-    // Walk the chain in slot order: fixed blocks go to their dedicated
-    // controls; everything else is an assignable effect that fills the next
-    // free FX slot (POD Go has four).
-    let mut modules: Vec<&crate::preset_parser::ModuleInfo> = preset.modules.iter().collect();
-    modules.sort_by_key(|m| m.slot);
-
-    let mut next_fx_slot = 0usize; // 0-based; slots 0..=3 map to fx1..fx4
-    for m in &modules {
-        let enable = if m.bypassed { 0u16 } else { 1u16 };
-
-        if crate::preset_parser::is_fixed_block_category(&m.category, &m.name) {
-            match m.category.as_str() {
-                "Amp" => {
-                    set_select(controller, "amp_select",
-                               AMP_MODELS.iter().position(|a| a.name == m.name), &m.name);
-                    store_set(controller, "amp_enable", enable);
-                }
-                "Cab" => {
-                    set_select(controller, "cab_select",
-                               CAB_MODELS.iter().position(|n| *n == m.name), &m.name);
-                }
-                "Wah" => {
-                    set_select(controller, "wah_select",
-                               WAH_MODELS.iter().position(|n| *n == m.name), &m.name);
-                    store_set(controller, "wah_enable", enable);
-                }
-                "Vol/Pan" => {
-                    // Fixed Volume pedal block. No model selector; its level is
-                    // a parameter. Just reflect the on/off state for now.
-                    store_set(controller, "volume_enable", enable);
-                }
-                "EQ" => {
-                    // Dedicated Preset EQ block (model selector for the EQ type).
-                    set_select(controller, "preset_eq_select",
-                               EQ_MODELS.iter().position(|n| *n == m.name), &m.name);
-                    store_set(controller, "preset_eq_enable", enable);
-                }
-                _ => {
-                    // FX Loop / Send-Return.
-                    store_set(controller, "fx_loop_enable", enable);
-                }
-            }
-            continue;
-        }
-
-        // Assignable effect block -> next free FX slot.
-        if next_fx_slot >= 4 {
-            warn!("sync: more than 4 FX blocks; '{}' (slot {}) not shown", m.name, m.slot);
-            continue;
-        }
-        let n = next_fx_slot + 1;
-        next_fx_slot += 1;
-        set_select(controller, &format!("fx{}_select", n),
-                   FX_MODELS.iter().position(|fm| fm.name == m.name), &m.name);
-        store_set(controller, &format!("fx{}_enable", n), enable);
-        sync_fx_params(controller, n, &m.name, &m.parameters);
-    }
-}
-
-/// Reset all handler-managed block controls to a neutral state. Called before
-/// syncing a preset so blocks not present in it don't display leftover values
-/// from a previously-loaded preset.
-fn reset_managed_blocks(controller: &Arc<Mutex<Controller>>) {
-    // Fixed-block enables + the wah selector.
-    const FIXED: &[&str] = &[
-        "wah_select", "wah_enable",
-        "volume_enable", "fx_loop_enable",
-        "preset_eq_select", "preset_eq_enable",
-    ];
-    for c in FIXED {
-        store_set(controller, c, 0);
-    }
-    // Every FX slot's selector, enable and all param sliders.
-    for n in 1..=4 {
-        store_set(controller, &format!("fx{}_select", n), 0);
-        store_set(controller, &format!("fx{}_enable", n), 0);
-        for p in 1..=MAX_FX_PARAMS {
-            store_set(controller, &format!("fx{}_param{}", n, p), 0);
-        }
-    }
-}
 
 fn set_select(controller: &Arc<Mutex<Controller>>, control: &str, idx: Option<usize>, name: &str) {
     match idx {
@@ -267,40 +182,177 @@ fn set_select(controller: &Arc<Mutex<Controller>>, control: &str, idx: Option<us
 /// Map a parsed FX block's positional params onto its slot's `fxN_paramK`
 /// controls, using the model's `ParamSpec` to decide which positions are
 /// surfaced. Param values are already in device order; only those the spec
-/// names (and that fit a 0..=127 percent control) are shown — unknown models
-/// have an empty spec and therefore show no params yet.
-fn sync_fx_params(
+/// names are shown; an unknown model has an empty spec and shows no params.
+fn sync_block_params(
     controller: &Arc<Mutex<Controller>>,
-    slot: usize,
-    model_name: &str,
+    prefix: &str,
+    model_index: Option<usize>,
     params: &[crate::preset_parser::ParamValue],
 ) {
-    let Some(model) = FX_MODELS.iter().find(|m| m.name == model_name) else {
-        return;
-    };
+    let model = model_index.and_then(|i| crate::config::ALL_MODELS.get(i));
+    // Clear every position first: a shorter model must not leave the previous
+    // one's values behind.
+    for k in 1..=MAX_FX_PARAMS {
+        store_set(controller, &format!("{prefix}_param{k}"), 0);
+    }
+    let Some(model) = model else { return };
     for (i, pv) in params.iter().enumerate() {
         if i >= MAX_FX_PARAMS || model.params.label(i).is_none() {
             continue;
         }
-        let key = format!("fx{}_param{}", slot, i + 1);
-        // The preset stores most params normalized to 0.0..=1.0, which map
-        // directly onto the 0..=127 percent controls. Native-unit params
-        // (Hz/dB/counts) don't fit those controls yet, so skip them for now.
-        let value: u16 = match pv {
-            crate::preset_parser::ParamValue::Float(f) if (0.0..=1.0).contains(f) => {
-                (*f * 127.0).round() as u16
-            }
-            crate::preset_parser::ParamValue::Bool(b) => if *b { 127 } else { 0 },
-            other => {
-                info!("sync: {} = {:?} not a 0..1 value; needs a dedicated control, skipped", key, other);
-                continue;
-            }
+        let Some(def) = model.params.param(i) else { continue };
+        let key = format!("{}_param{}", prefix, i + 1);
+        let Some(value) = control_value(def, pv) else {
+            info!("sync: {} = {:?} has no mapping for kind {:?}, skipped", key, pv, def.kind);
+            continue;
         };
         store_set(controller, &key, value);
+    }
+}
+
+/// Map a device value onto the 0..=127 controller range its widget uses.
+///
+/// The device sends each param in **DSP units**, which differ per param — a
+/// percent arrives as 0..1, a frequency as 20..20000 Hz, a level as -60..6 dB,
+/// a note division as an integer index. `ParamDef::dsp_min`/`dsp_max` bound
+/// that range (from Line 6's model data), so normalising against them handles
+/// every kind uniformly instead of only the params that happen to be 0..1.
+pub(crate) fn control_value(def: &crate::model::ParamDef, pv: &crate::preset_parser::ParamValue) -> Option<u16> {
+    use crate::model::ParamKind;
+    use crate::preset_parser::ParamValue;
+
+    let as_f = |v: &ParamValue| match v {
+        ParamValue::Float(f) => Some(*f as f64),
+        ParamValue::Int(i) => Some(*i as f64),
+        ParamValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+        ParamValue::Raw(_) => None,
+    };
+
+    match def.kind {
+        ParamKind::Bool => Some(match pv {
+            ParamValue::Bool(b) => if *b { 127 } else { 0 },
+            other => if as_f(other)? >= 0.5 { 127 } else { 0 },
+        }),
+        // A discrete param's wire value is its option index offset by dsp_min;
+        // the combo box is driven by the raw index, not a 0..127 scale.
+        ParamKind::Enum => {
+            let idx = (as_f(pv)? - def.dsp_min).round();
+            (idx >= 0.0).then(|| idx.min(def.options.len().saturating_sub(1) as f64) as u16)
+        }
+        ParamKind::Numeric => {
+            let span = def.dsp_max - def.dsp_min;
+            let norm = if span.abs() < f64::EPSILON {
+                0.0
+            } else {
+                ((as_f(pv)? - def.dsp_min) / span).clamp(0.0, 1.0)
+            };
+            Some((norm * 127.0).round() as u16)
+        }
     }
 }
 
 fn store_set(controller: &Arc<Mutex<Controller>>, name: &str, value: u16) {
     let mut ctrl = controller.lock().unwrap();
     ctrl.set_full(name, value, pod_core::store::Origin::NONE, pod_core::store::Signal::Force);
+}
+
+fn num_program(p: &Program) -> Option<usize> {
+    match p {
+        Program::ManualMode | Program::Tuner => None,
+        Program::Program(v) => Some(*v as usize),
+    }
+}
+
+/// Read the device's current edit buffer and push it into the UI.
+///
+/// Every path that can change what the device has loaded goes through here:
+/// connecting, selecting or loading a preset in the UI, and the user changing
+/// preset on the pedal itself. `delay` gives the device time to finish
+/// switching before we read.
+///
+/// Retried a few times: the read claims the USB interface exclusively, so right
+/// after connect it can lose the race with the preset-name fetch that runs just
+/// before it. A single failed attempt used to leave the panel blank with no
+/// indication why.
+async fn refresh_from_device(
+    controller: Arc<Mutex<Controller>>, delay: Duration, why: &'static str,
+) {
+    const ATTEMPTS: u32 = 4;
+
+    if !delay.is_zero() {
+        tokio::time::sleep(delay).await;
+    }
+    for attempt in 1..=ATTEMPTS {
+        let preset =
+            tokio::task::spawn_blocking(crate::current_preset::read_current_preset_inprocess)
+                .await
+                .ok()
+                .flatten();
+        if let Some(preset) = preset {
+            info!("Read edit buffer after {why} (attempt {attempt})");
+            sync_controller_from_preset(&controller, &preset);
+            return;
+        }
+        warn!("Reading the edit buffer after {why} failed (attempt {attempt}/{ATTEMPTS})");
+        tokio::time::sleep(Duration::from_millis(400 * attempt as u64)).await;
+    }
+    warn!("Giving up reading the edit buffer after {why}; the panel will stay stale until Load");
+}
+
+/// Push a preset into the controller, position by position.
+///
+/// The chain is the unit of work: each position states which model it holds and
+/// what its values are, which is everything the UI needs. Nothing here consults
+/// a block's *category*, so no block can fail to be placed and no position can
+/// be claimed by something else — the failure that made unrecognised blocks
+/// (Loopers, Send/Return variants) shift every later block one place left.
+///
+/// Category is a property of the model, not of the position; it matters only
+/// when changing what a position holds.
+pub(crate) fn sync_controller_from_preset(
+    controller: &Arc<Mutex<Controller>>,
+    preset: &crate::preset_parser::PresetData,
+) {
+    for slot in 1..=crate::config::CHAIN_SLOTS {
+        let prefix = crate::config::slot_prefix(slot);
+        let block = preset.chain.get(slot);
+        let index = block
+            .and_then(|b| b.model_id)
+            .and_then(crate::config::model_index_for_id);
+
+        // One line per position, always: the id the chain reported, the name
+        // the preset carried (if any), and what that resolved to. Anything
+        // showing as empty is then attributable to a specific step rather than
+        // guessed at.
+        match (block.and_then(|b| b.model_id), index) {
+            (Some(id), Some(i)) => info!(
+                "sync: position {slot} id={id} name={:?} -> {:?}",
+                block.and_then(|b| b.name.as_deref()),
+                crate::config::ALL_MODELS[i].name
+            ),
+            (Some(id), None) => warn!(
+                "sync: position {slot} id={id} name={:?} -> NOT IN MODEL DATABASE",
+                block.and_then(|b| b.name.as_deref())
+            ),
+            (None, _) if block.map(|b| b.name.is_some()).unwrap_or(false) => warn!(
+                "sync: position {slot} name={:?} has NO MODEL ID in its chain meta \
+                 (block[20][24][25]); shown as empty",
+                block.and_then(|b| b.name.as_deref())
+            ),
+            (None, _) => info!("sync: position {slot} empty"),
+        }
+
+        // Index 0 is the explicit "(empty)" entry, so an unfilled or unresolved
+        // position clears rather than showing the previous preset's model.
+        store_set(controller, &format!("{prefix}_select"), index.unwrap_or(0) as u16);
+        store_set(
+            controller,
+            &format!("{prefix}_enable"),
+            u16::from(matches!(block, Some(b) if b.model_id.is_some() && !b.bypassed)),
+        );
+
+        let params = block.map(|b| b.parameters.as_slice()).unwrap_or(&[]);
+        sync_block_params(controller, &prefix, index, params);
+
+    }
 }

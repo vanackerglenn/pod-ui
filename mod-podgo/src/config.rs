@@ -12,15 +12,76 @@ use crate::model::*;
 /// as the selected model actually has.
 pub const MAX_FX_PARAMS: usize = 12;
 
+/// The name shown for a block position the preset doesn't fill.
+pub const EMPTY_MODEL: &str = "(empty)";
+
+/// The models a given block can host, each carrying its numeric wire id so a
+/// preset block resolves by id rather than by name.
+///
+/// Built from [`crate::models_db`], whose id table is `PodGo.sym`. The fixed
+/// blocks use the same `FxModel` shape as the four assignable FX slots so they
+/// can share the dynamic param-widget machinery in `module.rs`.
+fn block_models(categories: &[&'static str]) -> Vec<FxModel> {
+    // Index 0 is always "no model here". Without it an unfilled block falls
+    // back to whatever sorts first in its category — which is why empty slots
+    // used to display "Alpaca Rouge".
+    let mut v: Vec<FxModel> = vec![FxModel {
+        name: EMPTY_MODEL.to_string(),
+        category: "",
+        ids: vec![],
+        params: ParamSpec::default(),
+    }];
+    let mut by_name: HashMap<String, usize> = HashMap::new();
+    let all = categories.is_empty();
+    for (id, m) in crate::models_db::DB.entries_by_id() {
+        if !all && !categories.contains(&m.category) {
+            continue;
+        }
+        // One row per display name, but keep every id that leads to it so no
+        // preset block can fail to match.
+        match by_name.get(&m.name) {
+            Some(&i) => v[i].ids.push(id),
+            None => {
+                by_name.insert(m.name.clone(), v.len());
+                v.push(FxModel {
+                    name: m.name.clone(),
+                    category: m.category,
+                    ids: vec![id],
+                    params: m.spec.clone(),
+                });
+            }
+        }
+    }
+    v[1..].sort_by(|a, b| a.name.cmp(&b.name));
+    v
+}
+
+/// The amp block. POD Go's amp slot can host a full amp or a preamp.
+pub static AMP_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["Amp", "Preamp"]));
+/// The cab block: legacy cabs and the mic'd-IR cabs, which have different
+/// param lists (the IR cabs put Distance third, legacy cabs second).
+pub static CAB_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["Cab", "Cab/IR"]));
+pub static WAH_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["Wah"]));
+pub static EQ_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["EQ"]));
+pub static VOLUME_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["Vol/Pan"]));
+pub static FX_LOOP_BLOCK_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| block_models(&["Send/Return"]));
+
+// Name-only views, kept because pod_core's Config wants them. Derived from the
+// lists above so a selector index means the same thing in both.
 pub static AMP_MODELS: Lazy<Vec<Amp>> = Lazy::new(|| {
-    crate::preset_parser::all_amp_models().into_iter().map(|n| Amp {
-        name: n.to_string(),
-        ..Default::default()
-    }).collect()
+    AMP_BLOCK_MODELS.iter().skip(1).map(|m| Amp { name: m.name.clone(), ..Default::default() }).collect()
 });
 
 pub static CAB_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    crate::preset_parser::all_cab_models().into_iter().map(|n| n.to_string()).collect()
+    CAB_BLOCK_MODELS.iter().skip(1).map(|m| m.name.clone()).collect()
+});
+
+pub static WAH_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
+    WAH_BLOCK_MODELS.iter().skip(1).map(|m| m.name.clone()).collect()
+});
+
+pub static EQ_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
+    EQ_BLOCK_MODELS.iter().skip(1).map(|m| m.name.clone()).collect()
 });
 
 pub static REVERB_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
@@ -39,18 +100,44 @@ pub static DIST_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
     crate::preset_parser::models_by_category("Distortion").into_iter().map(|n| n.to_string()).collect()
 });
 
-pub static WAH_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    crate::preset_parser::models_by_category("Wah").into_iter().map(|n| n.to_string()).collect()
-});
-
 pub static DYN_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
     crate::preset_parser::models_by_category("Dynamic").into_iter().map(|n| n.to_string()).collect()
 });
 
-// EQ models for the dedicated Preset EQ block.
-pub static EQ_MODELS: Lazy<Vec<String>> = Lazy::new(|| {
-    crate::preset_parser::models_by_category("EQ").into_iter().map(|n| n.to_string()).collect()
+/// How many positions POD Go's signal chain has. Slots are numbered from 1;
+/// the chain array's index 0 and trailing entry are the flow's input and
+/// output, not blocks.
+pub const CHAIN_SLOTS: usize = 10;
+
+/// The controller name prefix for a chain position.
+///
+/// The UI is keyed by *position*, not by what kind of block sits there. A
+/// preset gives ten positions each holding a model id, and that id is enough to
+/// name the model and lay out its parameters — so loading a patch needs no
+/// notion of category at all. (It used to map each block's category onto one of
+/// ten per-category prefixes, which meant any category that mapping didn't
+/// anticipate — Looper, the Send/Return variants — had nowhere to go, displayed
+/// as empty, and consumed a slot that belonged to something else.)
+///
+/// Category still matters for *changing* a block: pick a type, then a model.
+/// Each entry in [`ALL_MODELS`] carries its own, so it comes from the model
+/// rather than from the position.
+pub fn slot_prefix(slot: usize) -> String {
+    format!("slot{slot}")
+}
+
+/// Every model the device knows, indexed so a wire id resolves in one step.
+/// Index 0 is the explicit "(empty)" entry.
+pub static ALL_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
+    let mut v = block_models(&[]);
+    v[1..].sort_by(|a, b| (a.category, &a.name).cmp(&(b.category, &b.name)));
+    v
 });
+
+/// Resolve a wire model id to its index in [`ALL_MODELS`].
+pub fn model_index_for_id(id: u64) -> Option<usize> {
+    ALL_MODELS.iter().position(|m| m.ids.contains(&id))
+}
 
 // module parameter labels
 pub static STOMP_CONFIG: Lazy<Vec<StompConfig>> = Lazy::new(|| {
@@ -217,31 +304,31 @@ pub static DELAY_CONFIG: Lazy<Vec<DelayConfig>> = Lazy::new(|| {
 pub struct FxModel {
     pub name: String,
     pub category: &'static str,
+    /// Every numeric wire id that resolves to this entry. Usually one, but the
+    /// data files list a few models twice under the same name with identical
+    /// params (both "Parametric"s in `eq.models`), and each copy has its own
+    /// id. The UI shows one row; a preset block matches on any of its ids.
+    pub ids: Vec<u64>,
     pub params: ParamSpec,
 }
 
 pub static FX_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
+    // POD Go's looper occupies one of the assignable effect blocks, so it
+    // belongs here — without it a looper resolves to nothing, displays as empty
+    // and still eats an FX slot.
     const FX_CATEGORIES: &[&str] = &[
         "Distortion", "Distortion (Legacy)", "Dynamic", "EQ", "Modulation",
-        "Delay", "Reverb", "Pitch/Synth", "Filter", "Wah", "Vol/Pan",
+        "Delay", "Reverb", "Pitch/Synth", "Filter", "Wah", "Vol/Pan", "Looper",
     ];
-    let mut v = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for cat in FX_CATEGORIES {
-        for name in crate::preset_parser::models_by_category(cat) {
-            // The model DB has a few same-named entries (e.g. two
-            // "4 OSC Generator" type ids); keep names unique so the combo
-            // index used by position() lookups stays stable.
-            if !seen.insert(name) {
-                continue;
-            }
-            v.push(FxModel {
-                name: name.to_string(),
-                category: cat,
-                params: param_spec_for(name),
-            });
-        }
-    }
+    // Built from the wire ids: each entry carries the id a preset block will be
+    // matched on, and resolves its params by that id rather than by name.
+    let mut v = block_models(FX_CATEGORIES);
+    v[1..].sort_by_key(|m| {
+        (
+            FX_CATEGORIES.iter().position(|c| *c == m.category).unwrap_or(usize::MAX),
+            m.name.clone(),
+        )
+    });
     v
 });
 
@@ -313,13 +400,10 @@ mod tests {
         // A Cab block in a loaded preset carries only its numeric id — the name
         // "2x12 Blue Bell" appears nowhere in the payload. Resolving by id has
         // to work without a usable name.
-        let (id, _, name) = crate::preset_parser::module_db_entries()
-            .find(|(_, _, name)| *name == "2x12 Blue Bell")
-            .expect("2x12 Blue Bell is a known cab");
-        let spec = param_spec_for_id(Some(id), "");
-        assert_eq!(spec.len(), 6, "{name} should resolve from its id alone");
+        let spec = param_spec_for_id(Some(53), "");
+        assert_eq!(spec.len(), 6, "2x12 Blue Bell should resolve from its id");
         // The name alone can't do this: it is shared with the mic'd-IR cab.
-        assert!(crate::models_db::DB.resolve(None, name).is_none());
+        assert!(crate::models_db::DB.resolve(None, "2x12 Blue Bell").is_none());
     }
 
     #[test]
@@ -330,6 +414,42 @@ mod tests {
         // own legacy builder tables may still supply a fallback spec.)
         assert_eq!(crate::models_db::DB.lookup("Sweep Echo").len(), 2);
         assert!(crate::models_db::DB.resolve(None, "Sweep Echo").is_none());
+    }
+
+    /// End-to-end over a real preset: parse the captured A30 Fawn Brt patch and
+    /// check every block resolves to a spec that matches the number of values
+    /// the device actually sent for it.
+    ///
+    /// A spec shorter or longer than the value array means the params are
+    /// misaligned — every slider would show its neighbour's value. That is the
+    /// failure this guards, and it is invisible to the per-model unit tests
+    /// because those never go through a parsed preset.
+    #[test]
+    fn captured_preset_resolves_every_block_to_a_matching_spec() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        assert_eq!(preset.modules.len(), 10, "the patch has 10 blocks");
+
+        let mut unresolved = Vec::new();
+        for m in &preset.modules {
+            let spec = param_spec_for_id(m.model_id, &m.name);
+            if spec.is_empty() {
+                unresolved.push(format!("{} ({})", m.name, m.category));
+                continue;
+            }
+            assert_eq!(
+                spec.len(),
+                m.parameters.len(),
+                "{}: spec has {} params but the device sent {} values",
+                m.name,
+                spec.len(),
+                m.parameters.len()
+            );
+        }
+        assert!(
+            unresolved.is_empty(),
+            "blocks with no param spec: {unresolved:?}"
+        );
     }
 
     #[test]
@@ -408,17 +528,29 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         "fx_loop_enable" => SwitchControl { cc: 118, addr: 32 + 118, ..def() },
         "fx_loop_mix" => RangeControl { cc: 119, addr: 32 + 119, format: fmt_percent!(), ..def() },
 
+        // The Volume and FX Loop blocks have no visible model selector (POD Go
+        // fixes each to a single model), but they still need a select value so
+        // the same param-rebuild wiring applies. Virtual: no cc/addr, no MIDI.
+        "volume_select" => VirtualSelect {},
+        "fx_loop_select" => VirtualSelect {},
+
         // name change button
         "name_change" => Button {},
     ));
 
-    // Per-slot FX param value holders. Virtual (no cc/addr) so they emit no
-    // MIDI and aren't cc-space-limited; the param widgets that display them are
-    // built dynamically per selected model (up to MAX_FX_PARAMS each).
-    for n in 1..=4 {
+    // Per-block param value holders. Virtual (no cc/addr) so they emit no MIDI
+    // and aren't cc-space-limited; the widgets that display them are built
+    // dynamically per selected model (up to MAX_FX_PARAMS each).
+    // One set of controls per chain position. Virtual (no cc/addr) so they emit
+    // no MIDI and aren't cc-space-limited; the widgets that display them are
+    // built dynamically from the model that position holds.
+    for slot in 1..=CHAIN_SLOTS {
+        let prefix = slot_prefix(slot);
+        controls.insert(format!("{prefix}_select"), VirtualSelect {}.into());
+        controls.insert(format!("{prefix}_enable"), VirtualSelect {}.into());
         for k in 1..=MAX_FX_PARAMS {
             controls.insert(
-                format!("fx{n}_param{k}"),
+                format!("{prefix}_param{k}"),
                 VirtualRangeControl { format: fmt_percent!(), ..def() }.into(),
             );
         }
@@ -466,3 +598,214 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         midi_quirks: MidiQuirks::empty(),
     }
 });
+
+
+#[cfg(test)]
+mod ui_dump {
+    use super::*;
+
+    /// Every value in the captured preset maps onto a control value — nothing
+    /// is silently dropped for being in native units.
+    ///
+    /// This is what the old 0..1-only rule got wrong: Fassel's 455 Hz, Room's
+    /// 5000 Hz and Parametric's 0.707 Q were all skipped, leaving those sliders
+    /// at zero while the block looked correctly identified.
+    #[test]
+    fn every_captured_value_maps_to_a_control_value() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        let mut checked = 0;
+        for m in &preset.modules {
+            let spec = param_spec_for_id(m.model_id, &m.name);
+            for (i, pv) in m.parameters.iter().enumerate() {
+                let Some(def) = spec.param(i) else { continue };
+                assert!(
+                    crate::handler::control_value(def, pv).is_some(),
+                    "{}: param {} ({}) = {:?} did not map",
+                    m.name, i, def.name, pv
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked >= 60, "only {checked} values checked");
+    }
+
+    /// Spot-check the mapping against values whose display units are known, so
+    /// a scaling regression shows up as a wrong number rather than silence.
+    #[test]
+    fn native_unit_values_land_where_expected() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        let room = preset.modules.iter().find(|m| m.name == "Room").expect("Room block");
+        let spec = param_spec_for_id(room.model_id, &room.name);
+
+        // Room: [Decay 0.58, Predelay 0.029 s, LowCut 150 Hz, HighCut 5000 Hz,
+        //        Mix 0.29, Level 0.0 dB, trails false]
+        let display = |i: usize| {
+            let def = spec.param(i).unwrap();
+            let v = crate::handler::control_value(def, &room.parameters[i]).unwrap();
+            def.min + (v as f64 / 127.0) * (def.max - def.min)
+        };
+        assert!((display(2) - 150.0).abs() < 60.0, "low cut {} Hz", display(2));
+        assert!((display(3) - 5000.0).abs() < 400.0, "high cut {} Hz", display(3));
+        assert!((display(4) - 29.0).abs() < 1.0, "mix {}%", display(4));
+        assert!((display(5) - 0.0).abs() < 1.0, "level {} dB", display(5));
+        // The trails flag is a checkbox, not a scale.
+        assert_eq!(spec.param(6).unwrap().kind, crate::model::ParamKind::Bool);
+    }
+
+    /// Every block of a real preset resolves to a model whose param count
+    /// matches the values the device sent for that position.
+    ///
+    /// Identifying the model isn't enough — a spec of the wrong length
+    /// misaligns every slider on that block.
+    #[test]
+    fn every_chain_position_resolves_to_a_matching_spec() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        for slot in 1..=CHAIN_SLOTS {
+            let Some(block) = preset.chain.get(slot) else { continue };
+            let Some(id) = block.model_id else { continue };
+            let index = model_index_for_id(id)
+                .unwrap_or_else(|| panic!("position {slot}: model id {id} does not resolve"));
+            assert_eq!(
+                ALL_MODELS[index].params.len(),
+                block.parameters.len(),
+                "position {slot} ({}): spec {} vs {} values",
+                ALL_MODELS[index].name, ALL_MODELS[index].params.len(), block.parameters.len()
+            );
+        }
+    }
+
+    /// An unused block reads as empty, not as whatever model happens to sort
+    /// first in its category.
+    ///
+    /// A preset with fewer than four effects leaves FX slots unfilled;
+    /// `reset_managed_blocks` sets their selector to 0, so index 0 of every
+    /// block list has to mean "nothing here". It used to be a real model, which
+    /// is why empty slots displayed "Alpaca Rouge".
+    #[test]
+    fn an_unfilled_block_reads_as_empty() {
+        assert_eq!(ALL_MODELS[0].name, EMPTY_MODEL, "index 0 must be the empty entry");
+        assert!(ALL_MODELS[0].params.is_empty(), "the empty entry has no params");
+        assert!(ALL_MODELS[0].ids.is_empty(), "no wire id maps to the empty entry");
+    }
+
+    /// Every model the device can report resolves, whatever its category.
+    ///
+    /// Loading is keyed by position and model id, so a category no block used
+    /// to host — Looper, the Send/Return variants — is no longer a special
+    /// case. This asserts the catalogue is genuinely complete rather than
+    /// filtered down to the categories the old per-category lists covered.
+    #[test]
+    fn every_known_model_resolves_by_id() {
+        let mut unresolved = Vec::new();
+        for (id, m) in crate::models_db::DB.entries_by_id() {
+            if model_index_for_id(id).is_none() {
+                unresolved.push((id, m.name.clone(), m.category));
+            }
+        }
+        assert!(unresolved.is_empty(), "models with no entry: {unresolved:?}");
+        // Loopers in particular used to have nowhere to go.
+        let loopers: Vec<&str> = ALL_MODELS
+            .iter()
+            .filter(|m| m.category == "Looper")
+            .map(|m| m.name.as_str())
+            .collect();
+        assert!(!loopers.is_empty(), "loopers should be selectable");
+    }
+
+    /// Each chain position drives its own controls, so what a preset holds at
+    /// position N lands on `slotN`.
+    #[test]
+    fn every_chain_position_syncs_to_its_own_controls() {
+        use std::sync::{Arc, Mutex};
+        use pod_core::controller::Controller;
+        use pod_core::store::Store;
+
+        let controller = Arc::new(Mutex::new(Controller::new(CONFIG.controls.clone())));
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        crate::handler::sync_controller_from_preset(&controller, &preset);
+
+        let ctrl = controller.lock().unwrap();
+        for (slot, expected) in [
+            (1usize, "Fassel"), (2, "Volume"), (3, "FX Loop 1"), (4, "Top Secret OD"),
+            (5, "A30 Fawn Brt"), (6, "2x12 Blue Bell"), (7, "LA Studio Comp"),
+            (8, "Transistor Tape"), (9, "Room"), (10, "Parametric"),
+        ] {
+            let idx = ctrl.get(&format!("{}_select", slot_prefix(slot))).unwrap() as usize;
+            assert_eq!(ALL_MODELS[idx].name, expected, "position {slot}");
+        }
+    }
+
+    /// A position the model database can't resolve shows empty *in place*, and
+    /// every other position keeps its own.
+    ///
+    /// This is the failure that kept recurring while the UI was keyed by
+    /// category: an unplaceable block (a Looper, a Send/Return variant) took a
+    /// slot that wasn't its own and shifted everything after it one position
+    /// left. Keyed by position, an unresolvable model can only blank itself.
+    #[test]
+    fn an_unresolvable_block_only_blanks_its_own_position() {
+        use std::sync::{Arc, Mutex};
+        use pod_core::controller::Controller;
+        use pod_core::store::Store;
+
+        let controller = Arc::new(Mutex::new(Controller::new(CONFIG.controls.clone())));
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let mut preset = crate::preset_parser::parse_preset_data(data);
+        // A model id nothing knows, at position 3.
+        preset.chain[3].model_id = Some(u64::MAX);
+        preset.chain[3].name = None;
+        crate::handler::sync_controller_from_preset(&controller, &preset);
+
+        let ctrl = controller.lock().unwrap();
+        assert_eq!(ctrl.get("slot3_select"), Some(0), "the unknown block reads empty");
+        for (slot, expected) in [(4usize, "Top Secret OD"), (5, "A30 Fawn Brt"), (10, "Parametric")] {
+            let idx = ctrl.get(&format!("{}_select", slot_prefix(slot))).unwrap() as usize;
+            assert_eq!(ALL_MODELS[idx].name, expected, "position {slot} must not shift");
+        }
+    }
+
+    /// Drive the real preset->controller sync with the captured patch and read
+    /// the control values back out. This is the whole pipeline short of the
+    /// widgets, so if these values are right, any remaining problem is in the
+    /// UI layer alone.
+    #[test]
+    #[ignore]
+    fn dump_chain_occupancy() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        for (slot, id) in preset.chain.iter().enumerate() {
+            let who = preset.modules.iter().find(|m| m.slot as usize == slot);
+            println!("chain[{slot:>2}] id={:?} name={:?}", id.model_id, id.name);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_controller_after_sync() {
+        use std::sync::{Arc, Mutex};
+        use pod_core::controller::Controller;
+        use pod_core::store::Store;
+
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        let controller = Arc::new(Mutex::new(Controller::new(CONFIG.controls.clone())));
+        crate::handler::sync_controller_from_preset(&controller, &preset);
+
+        let ctrl = controller.lock().unwrap();
+        for slot in 1..=CHAIN_SLOTS {
+            let prefix = slot_prefix(slot);
+            let sel = ctrl.get(&format!("{prefix}_select"));
+            let name = sel.and_then(|i| ALL_MODELS.get(i as usize)).map(|m| m.name.as_str());
+            let vals: Vec<String> = (1..=MAX_FX_PARAMS)
+                .filter_map(|k| ctrl.get(&format!("{prefix}_param{k}")))
+                .map(|v| v.to_string())
+                .collect();
+            println!("{prefix:<10} select={sel:?} model={name:?} params=[{}]", vals.join(", "));
+        }
+    }
+}
+
