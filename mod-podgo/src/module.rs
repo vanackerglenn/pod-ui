@@ -148,7 +148,9 @@ fn build_param_row(
             let upd = updating.clone();
             Rc::new(move |v: u16| { upd.set(true); combo.set_active(Some(v as u32)); upd.set(false); })
         }
-        // numeric kinds (percent/hz/db/ms/time/semitones/int/enum-without-options/unknown)
+        // Numeric kinds (and enum-without-options) -> slider. The param's
+        // unit/min/max/decimals are carried on `def` but not yet wired into the
+        // display scale (pending the normalized-value -> display mapping).
         _ => {
             let adj = gtk::Adjustment::new(0.0, 0.0, 127.0, 1.0, 8.0, 0.0);
             let scale = gtk::Scale::new(Orientation::Horizontal, Some(&adj));

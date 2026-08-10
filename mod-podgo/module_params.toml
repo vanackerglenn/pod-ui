@@ -3,36 +3,58 @@
 # For each module, list its parameters IN THE ORDER THEY APPEAR ON THE DEVICE
 # screen. Each param is an inline table: { name = "...", kind = "..." }
 #
-# kind values:
-#   percent   - 0..100%% (stored normalized 0..1) — the common case, fits a slider
-#   db        - decibels (EQ gain, some levels/thresholds)
-#   hz        - frequency in Hz
-#   ms        - time in milliseconds
-#   time      - tempo / note-division (e.g. "1/4", "1/8 dotted"); often the 1st param
-#   semitones - pitch in semitones
-#   enum      - discrete choice (wave shape, octave, # of heads, ...); add options = ["..",".."]
-#   bool      - on/off switch
-#   int       - integer count
+# `kind` names a reusable TYPE that carries the unit + display range, so common
+# shapes don't have to be respelled per model. Just write `kind = "cents"`.
+#
+# BUILT-IN TYPES (defined in mod-podgo/src/model.rs `builtin_types`; ranges
+# marked "est" are first-pass guesses to refine against the device):
+#   percent   - %,  0..100, 0 dp   — the common case
+#   percent1  -     0..10,  1 dp   — the "knob to 10" scale (shows e.g. 8.8)
+#   mix       - %,  0..100, 0 dp
+#   db/level  - dB, -60..12, 1 dp  (est)
+#   hz/freq   - Hz, 20..20000, 0 dp (est)
+#   ms        - ms, 0..1000, 0 dp  (est)
+#   semitones - st, -24..24, 0 dp  (est)
+#   cents     - ¢,  -50..50, 1 dp
+#   pan       -     -100..100, 0 dp (Left/Center/Right labels: TODO)
+#   int       -     0..10, 0 dp    (est)
+#   lowcut    - Hz, 20..500,  "Off" at min  (est) — a Low Cut filter
+#   highcut   - Hz, 500..20000, "Off" at max (est) — a High Cut filter
+#   enum      - dropdown; REQUIRES options = ["..",".."]
+#   bool      - on/off checkbox
 #   unknown   - placeholder until you check
 #
-# WIDGET RENDERING (current behavior — mod-podgo/src/module.rs):
-#   bool                   -> checkbox
-#   enum WITH options=[..]  -> dropdown of those labels
-#   everything else (percent/db/hz/ms/time/semitones/int, enum w/o options)
-#                          -> plain 0..127 slider
-# So today only `bool` and `enum`+options look different; the numeric units are
-# RECORDED but not yet formatted/scaled (unit-aware display is a pending TODO) —
-# fill them anyway so it "just works" once that lands.
+# INLINE OVERRIDES — any param may override its type's fields:
+#   { name = "Pitch", kind = "semitones", min = -12, max = 12 }
+#   { name = "Tone",  kind = "hz", min = 200, max = 8000 }
+#   { name = "Gain",  kind = "db", decimals = 0 }
+#   { name = "Filter", kind = "hz", off = "min" }   # off = "min" | "max"
+# Supplying `options = [..]` makes a param a dropdown regardless of `kind`.
 #
-# NOTE-DIVISIONS ("1/4", "1/8 dotted", ...): on the wire these are a normalized
-# float the device quantizes to steps. To SEE the labels now, use enum + options.
-# `time` is the semantically-correct kind but currently renders as a bare slider.
+# CUSTOM TYPES — define your own (or tweak a built-in in ONE place) via [types]:
+#   [types.ratio]      # a compressor-style discrete ratio
+#   kind = "enum"
+#   options = ["1.0:1", "1.5:1", "2.0:1", "4.0:1", "8:1", "Infinity:1"]
+#
+#   [types.lowcut]     # narrow the built-in estimate once you've checked it
+#   max = 1000
+#
+# WIDGET RENDERING (current behavior — mod-podgo/src/module.rs):
+#   bool                    -> checkbox
+#   enum WITH options=[..]  -> dropdown of those labels
+#   everything else         -> plain 0..127 slider
+# The unit/min/max/decimals are RECORDED but not yet wired into the slider scale
+# (that needs the normalized-value -> display mapping). Fill them anyway so it
+# "just works" once that lands.
+#
+# NOTE-DIVISIONS ("1/4", "1/8 dotted", ...): on the wire these are a discrete
+# int index, so model them as enum + options (a custom [types.<name>] is handy
+# if several models share the same division list).
 #
 # Leave `params = []` for modules not done yet. Fill order matters — the device
 # emits param VALUES positionally, so the Nth entry here maps to the Nth value.
-# One example (Gray Flanger) is filled to show the format; verify its kinds too.
 #
-# ---- REFERENCE: a made-up module exercising EVERY kind (commented out; not -----
+# ---- REFERENCE: a made-up module exercising the kinds (commented out; not -----
 # ---- parsed — copy/adapt the lines you need). enum REQUIRES options=[..]. ------
 # [[module]]
 # category = "Distortion"
@@ -40,13 +62,47 @@
 # params = [
 #   { name = "Drive",   kind = "percent" },                                  # 0..100%
 #   { name = "Level",   kind = "db" },                                       # decibels
-#   { name = "Tone",    kind = "hz" },                                       # frequency
+#   { name = "Tone",    kind = "hz", min = 200, max = 8000 },                # frequency w/ override
 #   { name = "Attack",  kind = "ms" },                                       # milliseconds
-#   { name = "Pitch",   kind = "semitones" },                               # pitch
+#   { name = "Pitch",   kind = "semitones" },                                # pitch
+#   { name = "Detune",  kind = "cents" },                                    # cents
+#   { name = "Pan",     kind = "pan" },                                      # Left/Center/Right
+#   { name = "Low Cut", kind = "lowcut" },                                   # "Off" at min
 #   { name = "Wave",    kind = "enum", options = ["Sine", "Square", "Triangle"] },  # dropdown
 #   { name = "Boost",   kind = "bool" },                                     # checkbox
-#   { name = "Heads",   kind = "int" },                                      # integer count
 # ]
+#
+# ============================================================================
+# [types] — custom/override param types. Each inherits the built-in of the same
+# name (if any), then applies the fields set here. Reference from a param with
+# `kind = "<name>"`. Define shared enum lists once here instead of repeating
+# their options on every param.
+# ============================================================================
+
+# The 12 chromatic notes, as the device labels them (harmonizer Key params).
+[types.note]
+kind = "enum"
+options = ["A", "A Sharp", "B", "C", "C Sharp", "D", "D Sharp", "E", "F", "F Sharp", "G", "G Sharp"]
+
+# Harmonizer scales (Twin Harmony, Dual Pitch V1/V2 ...).
+[types.scale]
+kind = "enum"
+options = ["Major", "Minor", "Major Pentatonic", "Minor Pentatonic", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Whole Diminished"]
+
+# A plain unitless decimal value (multipliers like 0.0..2.0). Set min/max inline.
+[types.number]
+decimals = 1
+
+# Harmonizer voice intervals (-9th..+9th, Unison center). NOTE: labels are
+# RECONSTRUCTED, not yet device-verified — the device may say "Octave" for 8th,
+# etc. Fix here once and both Shift params update.
+[types.interval]
+kind = "enum"
+options = ["-9th", "-8th", "-7th", "-6th", "-5th", "-4th", "-3rd", "-2nd", "0", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]
+
+# [types.example]
+# kind = "enum"
+# options = ["A", "B", "C"]
 
 
 # ========== Distortion (36) ==========
@@ -67,7 +123,7 @@ params = [
   { name = "Drive", kind = "percent" },
   { name = "Bass", kind = "percent" },
   { name = "Treble", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -350,8 +406,8 @@ name = "Thrifter Fuzz"
 params = [
   { name = "Drive", kind = "percent" },
   { name = "Attack", kind = "percent" },
-  { name = "NotchFreq", kind = "hz" },
-  { name = "NotchGain", kind = "db" },
+  { name = "NotchFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "NotchGain", kind = "db", min = -60, max = 12 },
   { name = "Thick", kind = "bool" },
   { name = "Level", kind = "percent" },
 ]
@@ -366,8 +422,8 @@ params = [
   { name = "Clipping", kind = "enum", options=["Soft", "Hard"] },
   { name = "OscLevel", kind = "percent" },
   { name = "OscTone", kind = "percent" },
-  { name = "MinFreq", kind = "hz" },
-  { name = "MaxFreq", kind = "hz" },
+  { name = "MinFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "MaxFreq", kind = "hz", min = 20, max = 20000 },
   { name = "WaveShape", kind = "enum", options=["Triangle", "Sine", "Square"] },
   { name = "Sensibility", kind = "percent" },
 ]
@@ -388,17 +444,17 @@ params = [
 category = "Distortion"
 name = "Bitcrusher"
 params = [
-  { name = "Gain", kind = "db" },
+  { name = "Gain", kind = "db", min = -60, max = 12 },
   { name = "BitDepth", kind = "percent" },
-  { name = "SampleRate", kind = "hz" },
-  { name = "LowCut", kind = "hz" }, #TODO: check these values because they go from Off to 500Hz. and the inverse of that for highCut
-  { name = "HighCut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "SampleRate", kind = "hz", min = 20, max = 20000 },
+  { name = "LowCut", kind = "lowcut", min = 20, max = 500 }, #TODO: check these values because they go from Off to 500Hz. and the inverse of that for highCut
+  { name = "HighCut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Mix", kind = "percent" },
-  { name = "Open", kind = "db" }, # Some db levels also differ on the device. some go to -96db, some to -120db, etc..
-  { name = "Close", kind = "db" },
-  { name = "HoldTime", kind = "ms" },# ms also rangebound?
-  { name = "Decay", kind = "ms" },
+  { name = "Open", kind = "db", min = -60, max = 12 }, # Some db levels also differ on the device. some go to -96db, some to -120db, etc..
+  { name = "Close", kind = "db", min = -60, max = 12 },
+  { name = "HoldTime", kind = "ms", min = 0, max = 1000 },# ms also rangebound?
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
 ]
 
 [[module]]
@@ -443,12 +499,12 @@ params = [
   { name = "Grunt", kind = "enum", options=["Cut", "Flat", "Boost"] },
   { name = "Attack", kind = "enum", options=["Cut", "Flat", "Boost"] },
   { name = "Master", kind = "percent" },
-  { name = "Bass", kind = "db" },
-  { name = "LoMidFreq", kind = "hz" }, #rangebound
-  { name = "LoMid", kind = "db" },
-  { name = "HighMidFreq", kind = "hz" },
-  { name = "HiMid", kind = "db" },
-  { name = "Treble", kind = "db" },
+  { name = "Bass", kind = "db", min = -60, max = 12 },
+  { name = "LoMidFreq", kind = "hz", min = 20, max = 20000 }, #rangebound
+  { name = "LoMid", kind = "db", min = -60, max = 12 },
+  { name = "HighMidFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "HiMid", kind = "db", min = -60, max = 12 },
+  { name = "Treble", kind = "db", min = -60, max = 12 },
   { name = "Distortion", kind = "bool" },
 ]
 
@@ -627,7 +683,7 @@ params = [
   { name = "Drive", kind = "percent" },
   { name = "Tone", kind = "int" }, # rangebound
   { name = "Blend", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -647,13 +703,13 @@ params = [
 category = "Dynamic"
 name = "Deluxe Comp"
 params = [
-  { name = "Threshold", kind = "db" },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
   { name = "Ratio", kind = "enum", options=["2:1", "3:1", "4:1", "6:1", "10:1", "20:1"] },
-  { name = "Attack", kind = "ms" },
-  { name = "Release", kind = "ms" },
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
+  { name = "Release", kind = "ms", min = 0, max = 1000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Knee", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Knee", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -662,7 +718,7 @@ name = "Red Squeeze"
 params = [
   { name = "Sensitivity", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -690,14 +746,14 @@ params = [
 category = "Dynamic"
 name = "Rochester Comp"
 params = [
-  { name = "Gain", kind = "db" },
-  { name = "Threshold", kind = "db" },
-  { name = "Ratio", kind = "enum", options=["1.0:1", "1.5:1", "2.0:1", "2.5:1", "3.0:1", "3.5:1", "3.5:1", "4.0:1", "4.5:1", "5.0:1", "5.5:1", "6.0:1", "6.5:1", "7:1", "8:1", "9:1", "10:1", "15:1", "20:1", "25:1", "30:1", "35:1", "Infinity:1"] }, # This seems like a log scale, even the slider makes bigger jumps to the right as you increase the value
-  { name = "Attack", kind = "ms" },
-  { name = "Release", kind = "ms" },
-  { name = "Level", kind = "db" },
-  { name = "Knee", kind = "db" },
-  { name = "Mix", kind = "db" },
+  { name = "Gain", kind = "db", min = -60, max = 12 },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
+  { name = "Ratio", kind = "enum", options=["1.0:1", "1.5:1", "2.0:1", "2.5:1", "3.0:1", "3.5:1", "4.0:1", "4.5:1", "5.0:1", "5.5:1", "6.0:1", "6.5:1", "7:1", "8:1", "9:1", "10:1", "15:1", "20:1", "25:1", "30:1", "35:1", "Infinity:1"] }, # This seems like a log scale, even the slider makes bigger jumps to the right as you increase the value
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
+  { name = "Release", kind = "ms", min = 0, max = 1000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Knee", kind = "db", min = -60, max = 12 },
+  { name = "Mix", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -709,7 +765,7 @@ params = [
   { name = "Type", kind = "enum", options=["Compress", "Limit"] },
   { name = "Emphasis", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -717,37 +773,37 @@ category = "Dynamic"
 name = "3-Band Comp"
 params = [
   { name = "Ratio", kind = "enum", options=["2:1", "3:1", "4:1", "6:1", "12:1", "20:1"] },
-  { name = "Attack", kind = "ms" },
-  { name = "Release", kind = "ms" },
-  { name = "LoXFreq", kind = "hz" },
-  { name = "HiXFreq", kind = "hz" },
-  { name = "Level", kind = "db" },
-  { name = "LoThresh", kind = "db" },
-  { name = "LoGain", kind = "db" },
-  { name = "MidThresh", kind = "db" },
-  { name = "MidGain", kind = "db" },
-  { name = "HiThresh", kind = "db" },
-  { name = "HiGain", kind = "db" },
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
+  { name = "Release", kind = "ms", min = 0, max = 1000 },
+  { name = "LoXFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "HiXFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "LoThresh", kind = "db", min = -60, max = 12 },
+  { name = "LoGain", kind = "db", min = -60, max = 12 },
+  { name = "MidThresh", kind = "db", min = -60, max = 12 },
+  { name = "MidGain", kind = "db", min = -60, max = 12 },
+  { name = "HiThresh", kind = "db", min = -60, max = 12 },
+  { name = "HiGain", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Dynamic"
 name = "Noise Gate"
 params = [
-  { name = "Threshold", kind = "db" },
-  { name = "Decay", kind = "ms" },
-  { name = "Level", kind = "db" },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Dynamic"
 name = "Hard Gate"
 params = [
-  { name = "Open", kind = "db" },
-  { name = "Close", kind = "db" },
-  { name = "HoldTime", kind = "ms" },
-  { name = "Decay", kind = "ms" },
-  { name = "Level", kind = "db" },
+  { name = "Open", kind = "db", min = -60, max = 12 },
+  { name = "Close", kind = "db", min = -60, max = 12 },
+  { name = "HoldTime", kind = "ms", min = 0, max = 1000 },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -757,19 +813,19 @@ params = [
   { name = "Mode", kind = "enum", options=["Bass", "Guitar"] },
   { name = "Sensitivity", kind = "percent" },
   { name = "GateRange", kind = "enum", options=["Authentic", "Extended"] },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Dynamic"
 name = "Autoswell"
 params = [
-  { name = "Threshold", kind = "db" },
-  { name = "RelOffset", kind = "db" },
-  { name = "Attack", kind = "ms" },
-  { name = "Decay", kind = "ms" },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
+  { name = "RelOffset", kind = "db", min = -60, max = 12 },
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
   { name = "Taper", kind = "enum", options=["Linear", "Logarithmic"] },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -837,49 +893,49 @@ params = [
 category = "EQ"
 name = "Simple EQ"
 params = [
-  { name = "LowGain", kind = "db" },
-  { name = "MidFreq", kind = "hz" },
-  { name = "MidGain", kind = "db" },
-  { name = "HighGain", kind = "db" },
-  { name = "Level", kind = "db" },
+  { name = "LowGain", kind = "db", min = -60, max = 12 },
+  { name = "MidFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "MidGain", kind = "db", min = -60, max = 12 },
+  { name = "HighGain", kind = "db", min = -60, max = 12 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "EQ"
 name = "Low and High Cut"
 params = [
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "EQ"
 name = "Low/High Shelf"
 params = [
-  { name = "Low Gain", kind = "db" },
-  { name = "Low Freq", kind = "hz" },
-  { name = "High Gain", kind = "db" },
-  { name = "Low Freq", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "High Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "EQ"
 name = "Parametric"
 params = [
-  { name = "Low Freq", kind = "hz" },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
   { name = "Low Q", kind = "percent" },
-  { name = "Low Gain", kind = "db" },
-  { name = "Mid Freq", kind = "hz" },
+  { name = "Low Gain", kind = "db", min = -60, max = 12 },
+  { name = "Mid Freq", kind = "hz", min = 20, max = 20000 },
   { name = "Mid Q", kind = "percent" },
-  { name = "Mid Gain", kind = "db" },
-  { name = "High Freq", kind = "hz" },
+  { name = "Mid Gain", kind = "db", min = -60, max = 12 },
+  { name = "High Freq", kind = "hz", min = 20, max = 20000 },
   { name = "High Q", kind = "percent" },
-  { name = "High Gain", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "High Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -887,37 +943,37 @@ category = "EQ"
 name = "Tilt"
 params = [
   { name = "Tilt", kind = "enum", options=["Dark100", "Dark99", "Dark98", "Dark97", "Dark96", "Dark95", "Dark94", "Dark93", "Dark92", "Dark91", "Dark90", "Dark89", "Dark88", "Dark87", "Dark86", "Dark85", "Dark84", "Dark83", "Dark82", "Dark81", "Dark80", "Dark79", "Dark78", "Dark77", "Dark76", "Dark75", "Dark74", "Dark73", "Dark72", "Dark71", "Dark70", "Dark69", "Dark68", "Dark67", "Dark66", "Dark65", "Dark64", "Dark63", "Dark62", "Dark61", "Dark60", "Dark59", "Dark58", "Dark57", "Dark56", "Dark55", "Dark54", "Dark53", "Dark52", "Dark51", "Dark50", "Dark49", "Dark48", "Dark47", "Dark46", "Dark45", "Dark44", "Dark43", "Dark42", "Dark41", "Dark40", "Dark39", "Dark38", "Dark37", "Dark36", "Dark35", "Dark34", "Dark33", "Dark32", "Dark31", "Dark30", "Dark29", "Dark28", "Dark27", "Dark26", "Dark25", "Dark24", "Dark23", "Dark22", "Dark21", "Dark20", "Dark19", "Dark18", "Dark17", "Dark16", "Dark15", "Dark14", "Dark13", "Dark12", "Dark11", "Dark10", "Dark9", "Dark8", "Dark7", "Dark6", "Dark5", "Dark4", "Dark3", "Dark2", "Dark1","Flat", "Bright1", "Bright2", "Bright3", "Bright4", "Bright5", "Bright6", "Bright7", "Bright8", "Bright9", "Bright10", "Bright11", "Bright12", "Bright13", "Bright14", "Bright15", "Bright16", "Bright17", "Bright18", "Bright19", "Bright20", "Bright21", "Bright22", "Bright23", "Bright24", "Bright25", "Bright26", "Bright27", "Bright28", "Bright29", "Bright30", "Bright31", "Bright32", "Bright33", "Bright34", "Bright35", "Bright36", "Bright37", "Bright38", "Bright39", "Bright40", "Bright41", "Bright42", "Bright43", "Bright44", "Bright45", "Bright46", "Bright47", "Bright48", "Bright49", "Bright50", "Bright51", "Bright52", "Bright53", "Bright54", "Bright55", "Bright56", "Bright57", "Bright58", "Bright59", "Bright60", "Bright61", "Bright62", "Bright63", "Bright64", "Bright65", "Bright66", "Bright67", "Bright68", "Bright69", "Bright70", "Bright71", "Bright72", "Bright73", "Bright74", "Bright75", "Bright76", "Bright77", "Bright78", "Bright79", "Bright80", "Bright81", "Bright82", "Bright83", "Bright84", "Bright85", "Bright86", "Bright87", "Bright88", "Bright89", "Bright90", "Bright91", "Bright92", "Bright93", "Bright94", "Bright95", "Bright96", "Bright97", "Bright98", "Bright99", "Bright100"] },
-  { name = "Center Freq", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Center Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "EQ"
 name = "10 Band Graphic"
 params = [
-  { name = "31.25Hz", kind = "db" },
-  { name = "62.5Hz", kind = "db" },
-  { name = "125Hz", kind = "db" },
-  { name = "250Hz", kind = "db" },
-  { name = "500Hz", kind = "db" },
-  { name = "1kHz", kind = "db" },
-  { name = "2kHz", kind = "db" },
-  { name = "4kHz", kind = "db" },
-  { name = "8kHz", kind = "db" },
-  { name = "16kHz", kind = "db" },
-  { name = "Level", kind = "db" },
+  { name = "31.25Hz", kind = "db", min = -60, max = 12 },
+  { name = "62.5Hz", kind = "db", min = -60, max = 12 },
+  { name = "125Hz", kind = "db", min = -60, max = 12 },
+  { name = "250Hz", kind = "db", min = -60, max = 12 },
+  { name = "500Hz", kind = "db", min = -60, max = 12 },
+  { name = "1kHz", kind = "db", min = -60, max = 12 },
+  { name = "2kHz", kind = "db", min = -60, max = 12 },
+  { name = "4kHz", kind = "db", min = -60, max = 12 },
+  { name = "8kHz", kind = "db", min = -60, max = 12 },
+  { name = "16kHz", kind = "db", min = -60, max = 12 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "EQ"
 name = "Cali Q Graphic"
 params = [
-  { name = "80Hz", kind = "db" },
-  { name = "240Hz", kind = "db" },
-  { name = "750Hz", kind = "db" },
-  { name = "2200Hz", kind = "db" },
-  { name = "6600Hz", kind = "db" },
-  { name = "Level", kind = "db" },
+  { name = "80Hz", kind = "db", min = -60, max = 12 },
+  { name = "240Hz", kind = "db", min = -60, max = 12 },
+  { name = "750Hz", kind = "db", min = -60, max = 12 },
+  { name = "2200Hz", kind = "db", min = -60, max = 12 },
+  { name = "6600Hz", kind = "db", min = -60, max = 12 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -928,7 +984,7 @@ params = [
   { name = "Body", kind = "percent" },
   { name = "Top", kind = "percent" },
   { name = "Shimmer", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 # ========== Modulation (24) ==========
@@ -940,7 +996,7 @@ params = [
   { name = "Speed", kind = "percent" },
   { name = "Intensity", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -951,32 +1007,32 @@ params = [
   { name = "Intensity", kind = "percent" },
   { name = "Mode", kind = "enum", options=["Tremolo", "Vibrato"] },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Modulation"
 name = "Tremolo/Autopan"
 params = [
-  { name = "Speed", kind = "hz" },
+  { name = "Speed", kind = "hz", min = 20, max = 20000 },
   { name = "Intensity", kind = "percent" },
   { name = "WavShape", kind = "enum", options=["Saw Up", "Saw Down", "Triangle", "Sine", "Square", "Inverse Sine", "Random"] },
   { name = "DutyCycle", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Modulation"
 name = "Harmonic Tremolo"
 params = [
-  { name = "Speed", kind = "hz" },
+  { name = "Speed", kind = "hz", min = 20, max = 20000 },
   { name = "Intensity", kind = "percent" },
   { name = "WavShape", kind = "enum", options=["Saw Up", "Saw Down", "Triangle", "Sine", "Square", "Inverse Sine", "Random"] },
   { name = "DutyCycle", kind = "percent" },
-  { name = "BassFreq", kind = "hz" },
-  { name = "TrebFreq", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "BassFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "TrebFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Mix", kind = "percent" },
   { name = "Spread", kind = "percent" },
 ]
@@ -985,7 +1041,7 @@ params = [
 category = "Modulation"
 name = "Bleat Chop Trem"
 params = [
-  { name = "Speed", kind = "hz" },
+  { name = "Speed", kind = "hz", min = 20, max = 20000 },
   { name = "WavShape", kind = "enum", options=["Saw Up", "Saw Down", "Triangle", "Sine", "Square", "Inverse Sine", "Random"] },
   { name = "Step1", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
   { name = "Step2", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
@@ -993,7 +1049,7 @@ params = [
   { name = "Step4", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
   { name = "Spread", kind = "percent" },
   { name = "Depth", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1003,7 +1059,7 @@ params = [
   { name = "Rate", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1013,7 +1069,7 @@ params = [
   { name = "Rate", kind = "percent" },
   { name = "Color", kind = "bool" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1026,7 +1082,7 @@ params = [
   { name = "Lamp Bias", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1038,14 +1094,14 @@ params = [
   { name = "Wrap", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Modulation"
 name = "Deluxe Phaser"
 params = [
-  { name = "Rate", kind = "hz" },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
   { name = "Offset", kind = "percent" },
   { name = "Feedback", kind = "percent" },
@@ -1053,7 +1109,7 @@ params = [
   { name = "Mix", kind = "percent" },
   { name = "Stages", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1066,8 +1122,8 @@ params = [
   { name = "Regen",    kind = "percent" },
   { name = "Spread",   kind = "percent" },
   { name = "Mix",      kind = "percent" },
-  { name = "Level",    kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level",    kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1081,8 +1137,8 @@ params = [
   { name = "Harmonic",    kind = "enum", options=["Odd", "Even"] },
   { name = "Spread",   kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1095,8 +1151,8 @@ params = [
   { name = "FreezeLFO",     kind = "bool" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1111,10 +1167,10 @@ params = [
   { name = "Phasing",     kind = "percent" },
   { name = "Recycle",     kind = "enum", options=["Out", "In"] },
   { name = "CV Dyn", kind = "percent" },
-  { name = "Max Delay", kind = "ms" },
+  { name = "Max Delay", kind = "ms", min = 0, max = 1000 },
   { name = "CV Track", kind = "enum", options=["Normal", "Invert"] },
-  { name = "Env Lag", kind = "ms" },
-  { name = "Evn Input", kind = "db" },
+  { name = "Env Lag", kind = "ms", min = 0, max = 1000 },
+  { name = "Evn Input", kind = "db", min = -60, max = 12 },
   { name = "CV Decay", kind = "enum", options=["1X", "2X", "4X"] },
 ]
 
@@ -1129,7 +1185,7 @@ params = [
   { name = "Tone", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1143,8 +1199,8 @@ params = [
   { name = "Spread", kind = "percent" },
   { name = "Stereo", kind = "enum", options=["True", "Classic"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1156,8 +1212,8 @@ params = [
   { name = "Mode", kind = "enum", options=["Chorus", "Vibrato"] },
   { name = "Tone", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
   { name = "Spread", kind = "percent" },
 ]
 
@@ -1168,8 +1224,8 @@ params = [
   { name = "Rate", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
   { name = "Type", kind = "enum", options=["Single", "Dual"] },
   { name = "Spread", kind = "percent" },
 ]
@@ -1189,7 +1245,7 @@ params = [
   { name = "R Boost", kind = "bool" },
   { name = "Mode", kind = "enum", options=["Mono", "Stereo"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1199,10 +1255,10 @@ params = [
   { name = "Rate", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Voices", kind = "enum", options=["2", "3", "4"] },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Shelf", kind = "db" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Shelf", kind = "db", min = -60, max = 12 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1213,9 +1269,9 @@ params = [
   { name = "Depth", kind = "percent" },
   { name = "Rise Time", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Spread", kind = "percent" },
-  { name = "Headroom", kind = "db" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1229,8 +1285,8 @@ params = [
   { name = "Drive", kind = "percent" },
   { name = "Spkr Blend", kind = "enum", options=["Woofer100", "Woofer99", "Woofer98", "Woofer97", "Woofer96", "Woofer95", "Woofer94", "Woofer93", "Woofer92", "Woofer91", "Woofer90", "Woofer89", "Woofer88", "Woofer87", "Woofer86", "Woofer85", "Woofer84", "Woofer83", "Woofer82", "Woofer81", "Woofer80", "Woofer79", "Woofer78", "Woofer77", "Woofer76", "Woofer75", "Woofer74", "Woofer73", "Woofer72", "Woofer71", "Woofer70", "Woofer69", "Woofer68", "Woofer67", "Woofer66", "Woofer65", "Woofer64", "Woofer63", "Woofer62", "Woofer61", "Woofer60", "Woofer59", "Woofer58", "Woofer57", "Woofer56", "Woofer55", "Woofer54", "Woofer53", "Woofer52", "Woofer51", "Woofer50", "Woofer49", "Woofer48", "Woofer47", "Woofer46", "Woofer45", "Woofer44", "Woofer43", "Woofer42", "Woofer41", "Woofer40", "Woofer39", "Woofer38", "Woofer37", "Woofer36", "Woofer35", "Woofer34", "Woofer33", "Woofer32", "Woofer31", "Woofer30", "Woofer29", "Woofer28", "Woofer27", "Woofer26", "Woofer25", "Woofer24", "Woofer23", "Woofer22", "Woofer21", "Woofer20", "Woofer19", "Woofer18", "Woofer17", "Woofer16", "Woofer15", "Woofer14", "Woofer13", "Woofer12", "Woofer11", "Woofer10", "Woofer9", "Woofer8", "Woofer7", "Woofer6", "Woofer5", "Woofer4", "Woofer3", "Woofer2", "Woofer1", "Equal", "Horn1", "Horn2", "Horn3", "Horn4", "Horn5", "Horn6", "Horn7", "Horn8", "Horn9", "Horn10", "Horn11", "Horn12", "Horn13", "Horn14", "Horn15", "Horn16", "Horn17", "Horn18", "Horn19", "Horn20", "Horn21", "Horn22", "Horn23", "Horn24", "Horn25", "Horn26", "Horn27", "Horn28", "Horn29", "Horn30", "Horn31", "Horn32", "Horn33", "Horn34", "Horn35", "Horn36", "Horn37", "Horn38", "Horn39", "Horn40", "Horn41", "Horn42", "Horn43", "Horn44", "Horn45", "Horn46", "Horn47", "Horn48", "Horn49", "Horn50", "Horn51", "Horn52", "Horn53", "Horn54", "Horn55", "Horn56", "Horn57", "Horn58", "Horn59", "Horn60", "Horn61", "Horn62", "Horn63", "Horn64", "Horn65", "Horn66", "Horn67", "Horn68", "Horn69", "Horn70", "Horn71", "Horn72", "Horn73", "Horn74", "Horn75", "Horn76", "Horn77", "Horn78", "Horn79", "Horn80", "Horn81", "Horn82", "Horn83", "Horn84", "Horn85", "Horn86", "Horn87", "Horn88", "Horn89", "Horn90", "Horn91", "Horn92", "Horn93", "Horn94", "Horn95", "Horn96", "Horn97", "Horn98", "Horn99", "Horn100"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1244,8 +1300,8 @@ params = [
   { name = "Drive", kind = "percent" },
   { name = "Spkr Blend", kind = "enum", options=["Woofer100", "Woofer99", "Woofer98", "Woofer97", "Woofer96", "Woofer95", "Woofer94", "Woofer93", "Woofer92", "Woofer91", "Woofer90", "Woofer89", "Woofer88", "Woofer87", "Woofer86", "Woofer85", "Woofer84", "Woofer83", "Woofer82", "Woofer81", "Woofer80", "Woofer79", "Woofer78", "Woofer77", "Woofer76", "Woofer75", "Woofer74", "Woofer73", "Woofer72", "Woofer71", "Woofer70", "Woofer69", "Woofer68", "Woofer67", "Woofer66", "Woofer65", "Woofer64", "Woofer63", "Woofer62", "Woofer61", "Woofer60", "Woofer59", "Woofer58", "Woofer57", "Woofer56", "Woofer55", "Woofer54", "Woofer53", "Woofer52", "Woofer51", "Woofer50", "Woofer49", "Woofer48", "Woofer47", "Woofer46", "Woofer45", "Woofer44", "Woofer43", "Woofer42", "Woofer41", "Woofer40", "Woofer39", "Woofer38", "Woofer37", "Woofer36", "Woofer35", "Woofer34", "Woofer33", "Woofer32", "Woofer31", "Woofer30", "Woofer29", "Woofer28", "Woofer27", "Woofer26", "Woofer25", "Woofer24", "Woofer23", "Woofer22", "Woofer21", "Woofer20", "Woofer19", "Woofer18", "Woofer17", "Woofer16", "Woofer15", "Woofer14", "Woofer13", "Woofer12", "Woofer11", "Woofer10", "Woofer9", "Woofer8", "Woofer7", "Woofer6", "Woofer5", "Woofer4", "Woofer3", "Woofer2", "Woofer1", "Equal", "Horn1", "Horn2", "Horn3", "Horn4", "Horn5", "Horn6", "Horn7", "Horn8", "Horn9", "Horn10", "Horn11", "Horn12", "Horn13", "Horn14", "Horn15", "Horn16", "Horn17", "Horn18", "Horn19", "Horn20", "Horn21", "Horn22", "Horn23", "Horn24", "Horn25", "Horn26", "Horn27", "Horn28", "Horn29", "Horn30", "Horn31", "Horn32", "Horn33", "Horn34", "Horn35", "Horn36", "Horn37", "Horn38", "Horn39", "Horn40", "Horn41", "Horn42", "Horn43", "Horn44", "Horn45", "Horn46", "Horn47", "Horn48", "Horn49", "Horn50", "Horn51", "Horn52", "Horn53", "Horn54", "Horn55", "Horn56", "Horn57", "Horn58", "Horn59", "Horn60", "Horn61", "Horn62", "Horn63", "Horn64", "Horn65", "Horn66", "Horn67", "Horn68", "Horn69", "Horn70", "Horn71", "Horn72", "Horn73", "Horn74", "Horn75", "Horn76", "Horn77", "Horn78", "Horn79", "Horn80", "Horn81", "Horn82", "Horn83", "Horn84", "Horn85", "Horn86", "Horn87", "Horn88", "Horn89", "Horn90", "Horn91", "Horn92", "Horn93", "Horn94", "Horn95", "Horn96", "Horn97", "Horn98", "Horn99", "Horn100"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1259,8 +1315,8 @@ params = [
   { name = "Drive", kind = "percent" },
   { name = "Spkr Blend", kind = "enum", options=["Woofer100", "Woofer99", "Woofer98", "Woofer97", "Woofer96", "Woofer95", "Woofer94", "Woofer93", "Woofer92", "Woofer91", "Woofer90", "Woofer89", "Woofer88", "Woofer87", "Woofer86", "Woofer85", "Woofer84", "Woofer83", "Woofer82", "Woofer81", "Woofer80", "Woofer79", "Woofer78", "Woofer77", "Woofer76", "Woofer75", "Woofer74", "Woofer73", "Woofer72", "Woofer71", "Woofer70", "Woofer69", "Woofer68", "Woofer67", "Woofer66", "Woofer65", "Woofer64", "Woofer63", "Woofer62", "Woofer61", "Woofer60", "Woofer59", "Woofer58", "Woofer57", "Woofer56", "Woofer55", "Woofer54", "Woofer53", "Woofer52", "Woofer51", "Woofer50", "Woofer49", "Woofer48", "Woofer47", "Woofer46", "Woofer45", "Woofer44", "Woofer43", "Woofer42", "Woofer41", "Woofer40", "Woofer39", "Woofer38", "Woofer37", "Woofer36", "Woofer35", "Woofer34", "Woofer33", "Woofer32", "Woofer31", "Woofer30", "Woofer29", "Woofer28", "Woofer27", "Woofer26", "Woofer25", "Woofer24", "Woofer23", "Woofer22", "Woofer21", "Woofer20", "Woofer19", "Woofer18", "Woofer17", "Woofer16", "Woofer15", "Woofer14", "Woofer13", "Woofer12", "Woofer11", "Woofer10", "Woofer9", "Woofer8", "Woofer7", "Woofer6", "Woofer5", "Woofer4", "Woofer3", "Woofer2", "Woofer1", "Equal", "Horn1", "Horn2", "Horn3", "Horn4", "Horn5", "Horn6", "Horn7", "Horn8", "Horn9", "Horn10", "Horn11", "Horn12", "Horn13", "Horn14", "Horn15", "Horn16", "Horn17", "Horn18", "Horn19", "Horn20", "Horn21", "Horn22", "Horn23", "Horn24", "Horn25", "Horn26", "Horn27", "Horn28", "Horn29", "Horn30", "Horn31", "Horn32", "Horn33", "Horn34", "Horn35", "Horn36", "Horn37", "Horn38", "Horn39", "Horn40", "Horn41", "Horn42", "Horn43", "Horn44", "Horn45", "Horn46", "Horn47", "Horn48", "Horn49", "Horn50", "Horn51", "Horn52", "Horn53", "Horn54", "Horn55", "Horn56", "Horn57", "Horn58", "Horn59", "Horn60", "Horn61", "Horn62", "Horn63", "Horn64", "Horn65", "Horn66", "Horn67", "Horn68", "Horn69", "Horn70", "Horn71", "Horn72", "Horn73", "Horn74", "Horn75", "Horn76", "Horn77", "Horn78", "Horn79", "Horn80", "Horn81", "Horn82", "Horn83", "Horn84", "Horn85", "Horn86", "Horn87", "Horn88", "Horn89", "Horn90", "Horn91", "Horn92", "Horn93", "Horn94", "Horn95", "Horn96", "Horn97", "Horn98", "Horn99", "Horn100"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1272,11 +1328,11 @@ params = [
   { name = "Fast Speed", kind = "percent" },
   { name = "Ramp Time", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Drive", kind = "percent" },
-  { name = "Headroom", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Wobble", kind = "percent" },
   { name = "Separation", kind = "percent" },
   { name = "Rotor Drift", kind = "percent" },
@@ -1290,10 +1346,10 @@ name = "Retro Reel"
 params = [
   { name = "Wow Fluttr", kind = "percent" },
   { name = "Saturation", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Tape Spd", kind = "enum", options=["7.5ips", "15ips", "30ips"] },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Texture", kind = "percent" },
 ]
 
@@ -1305,22 +1361,22 @@ params = [
   { name = "Slop", kind = "percent" },
   { name = "Sensitivity", kind = "percent" },
   { name = "Source", kind = "enum", options=["Mono", "Stereo", "Left", "Right"] },
-  { name = "Dry Level", kind = "db" },
-  { name = "Wet Level", kind = "db" },
+  { name = "Dry Level", kind = "db", min = -60, max = 12 },
+  { name = "Wet Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Modulation"
 name = "AM Ring Mod"
 params = [
-  { name = "Frequency", kind = "hz" },
+  { name = "Frequency", kind = "hz", min = 20, max = 20000 },
   { name = "AM", kind = "bool" },
-  { name = "AM Freq", kind = "hz" },
+  { name = "AM Freq", kind = "hz", min = 20, max = 20000 },
   { name = "LFO", kind = "bool" },
-  { name = "LFO Rate", kind = "hz" },
+  { name = "LFO Rate", kind = "hz", min = 20, max = 20000 },
   { name = "LFO Shape", kind = "enum", options=["Sawtooth Up", "Sawtooth Down", "Triangle", "Sine", "Square", "Inverse Sine" ]  },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1330,16 +1386,16 @@ params = [
   { name = "Shape", kind = "percent" },
   { name = "Duty Cycle", kind = "percent" },
   { name = "Octave", kind = "enum", options=["-3", "-2", "-1", "0", "1", "2", "3"] },
-  { name = "Pitch", kind = "percent" }, # not percent, this is a range of -12.0 to +12.0
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Pitch", kind = "semitones", min = -12, max = 12, decimals = 1 }, # not percent, this is a range of -12.0 to +12.0
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "FM Amount", kind = "percent" },
   { name = "FM Shape", kind = "percent" },
   { name = "FM Duty", kind = "percent" },
   { name = "FM Octave", kind = "enum", options=["-3", "-2", "-1", "0", "1", "2", "3"] },
-  { name = "FM Pitch", kind = "percent" }, # not percent, this is a range of -12.0 to +12.0
+  { name = "FM Pitch", kind = "semitones", min = -12, max = 12, decimals = 1 }, # not percent, this is a range of -12.0 to +12.0
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1351,7 +1407,7 @@ params = [
   { name = "Step2", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
   { name = "Step3", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
   { name = "Step4", kind = "enum", options=["Mute", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "Full"] },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1363,7 +1419,7 @@ params = [
   { name = "Shape", kind = "enum", options=["Triangle", "Sine", "Square",]  },
   { name = "Vol Sense", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1375,7 +1431,7 @@ params = [
   { name = "Shape", kind = "percent" },
   { name = "Vol Sense", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1387,7 +1443,7 @@ params = [
   { name = "Shape", kind = "percent" },
   { name = "Vol Sense", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1395,7 +1451,7 @@ category = "Modulation"
 name = "Script Phase"
 params = [
   { name = "Speed", kind = "Hz" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1407,7 +1463,7 @@ params = [
   { name = "Pan", kind = "enum", options=["Left", "Center", "Right"] },
   { name = "Pan Speed", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1418,7 +1474,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "Mode", kind = "enum", options=["Up", "Down", "Stereo"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1430,7 +1486,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "LFO Shape", kind = "enum", options=["Sine", "Square"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1442,7 +1498,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "Vol Sense", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1454,7 +1510,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "Stage", kind = "enum", options=["Stage 4", "Stage 8", "Stage 16"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1466,7 +1522,7 @@ params = [
   { name = "Rise", kind = "percent" },
   { name = "Vol Sense", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1478,7 +1534,7 @@ params = [
   { name = "SW3", kind = "bool" },
   { name = "SW4", kind = "bool" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1490,7 +1546,7 @@ params = [
   { name = "Mode", kind = "enum", options=["Chorus", "Vibrato" ] },
   { name = "Tone", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1502,7 +1558,7 @@ params = [
   { name = "Depth2", kind = "percent" },
   { name = "Depth3", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1514,7 +1570,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "Manual", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1526,7 +1582,7 @@ params = [
   { name = "Feedback", kind = "percent" },
   { name = "Manual", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1537,7 +1593,7 @@ params = [
   { name = "Width", kind = "percent" },
   { name = "Regen", kind = "percent" },
   { name = "Manual", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1549,7 +1605,7 @@ params = [
   { name = "Enhance", kind = "percent" },
   { name = "Manual", kind = "percent" },
   { name = "Harmonic", kind = "enum", options=["Odd", "Even"] },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1559,7 +1615,7 @@ params = [
   { name = "Speed", kind = "Hz" },
   { name = "Mode", kind = "enum", options=["Up", "Down", "Stereo"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1571,7 +1627,7 @@ params = [
   { name = "Shape", kind = "percent" },
   { name = "AM/FM", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1583,7 +1639,7 @@ params = [
   { name = "Tone", kind = "percent" },
   { name = "Drive", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1595,7 +1651,7 @@ params = [
   { name = "Horn Depth", kind = "percent" },
   { name = "Drive", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1606,7 +1662,7 @@ params = [
   { name = "Flutter", kind = "percent" },
   { name = "Distortion", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1617,7 +1673,7 @@ params = [
   { name = "Depth", kind = "percent" },
   { name = "Q", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1628,7 +1684,7 @@ params = [
   { name = "Depth", kind = "percent" },
   { name = "Q", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
@@ -1640,7 +1696,7 @@ params = [
   { name = "Q", kind = "percent" },
   { name = "Frequency", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 # ========== Delay (22) ==========
@@ -1649,10 +1705,10 @@ params = [
 category = "Delay"
 name = "Simple Delay"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Scale", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -1661,12 +1717,12 @@ params = [
 category = "Delay"
 name = "Mod/Chorus Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Scale", kind = "percent" },
   { name = "Mod Mode", kind = "enum", options=["Off", "Chorus", "Vibrato" ] },
   { name = "Speed", kind = "percent" },
@@ -1679,15 +1735,15 @@ params = [
 category = "Delay"
 name = "Dual Delay"
 params = [
-  { name = "Left Time", kind = "ms" },
-  { name = "Right Time", kind = "ms" },
+  { name = "Left Time", kind = "ms", min = 0, max = 1000 },
+  { name = "Right Time", kind = "ms", min = 0, max = 1000 },
   { name = "LFeedback", kind = "percent" },
   { name = "RFeedback", kind = "percent" },
   { name = "Left Mix", kind = "percent" },
   { name = "Right Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mod Mode", kind = "enum", options=["Off", "Chorus", "Vibrato" ] },
   { name = "Speed", kind = "percent" },
   { name = "Depth", kind = "percent" },
@@ -1699,29 +1755,29 @@ params = [
 category = "Delay"
 name = "Multitap 4"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Diffusion", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
   { name = "T1Scale", kind = "percent" },
-  { name = "T1Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T1Pan", kind = "pan" },
   { name = "T1Level", kind = "percent" },
   { name = "T2Scale", kind = "percent" },
-  { name = "T2Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T2Pan", kind = "pan" },
   { name = "T2Level", kind = "percent" },
   { name = "T3Scale", kind = "percent" },
-  { name = "T3Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T3Pan", kind = "pan" },
   { name = "T3Level", kind = "percent" },
   { name = "T4Scale", kind = "percent" },
-  { name = "T4Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T4Pan", kind = "pan" },
   { name = "T4Level", kind = "percent" },
   { name = "Mod Mode", kind = "enum", options=["Off", "Chorus", "Vibrato" ] },
   { name = "Rate", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1729,29 +1785,29 @@ params = [
 category = "Delay"
 name = "Multitap 6"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "T1Scale", kind = "percent" },
-  { name = "T1Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T1Pan", kind = "pan" },
   { name = "T1Level", kind = "percent" },
   { name = "T2Scale", kind = "percent" },
-  { name = "T2Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T2Pan", kind = "pan" },
   { name = "T2Level", kind = "percent" },
   { name = "T3Scale", kind = "percent" },
-  { name = "T3Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T3Pan", kind = "pan" },
   { name = "T3Level", kind = "percent" },
   { name = "T4Scale", kind = "percent" },
-  { name = "T4Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T4Pan", kind = "pan" },
   { name = "T4Level", kind = "percent" },
   { name = "T5Scale", kind = "percent" },
-  { name = "T5Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T5Pan", kind = "pan" },
   { name = "T5Level", kind = "percent" },
   { name = "T6Scale", kind = "percent" },
-  { name = "T6Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "T6Pan", kind = "pan" },
   { name = "T6Level", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -1760,14 +1816,14 @@ params = [
 category = "Delay"
 name = "Ping Pong"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Scale", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1775,22 +1831,22 @@ params = [
 category = "Delay"
 name = "Sweep Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Filter", kind = "enum", options=["LowCut", "BandPass", "HighCut"] },
   { name = "Shape", kind = "enum", options=["Triangle", "Sine", "Square", "InvSine", "Exponential", "Random"] },
   { name = "Rate", kind = "percent" },
-  { name = "StartFreq", kind = "hz" },
-  { name = "Range", kind = "hz" },
+  { name = "StartFreq", kind = "hz", min = 20, max = 20000 },
+  { name = "Range", kind = "hz", min = 20, max = 20000 },
   { name = "Resonance", kind = "percent" },
   { name = "DutyCycle", kind = "percent" },
   { name = "Scale", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Headroom", kind = "db" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1798,17 +1854,17 @@ params = [
 category = "Delay"
 name = "Ducked Delay"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Scale", kind = "percent" },
-  { name = "Threshold", kind = "db" },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
   { name = "Ducking", kind = "percent" },
-  { name = "DynAttack", kind = "ms" },
-  { name = "DynRel", kind = "ms" },
+  { name = "DynAttack", kind = "ms", min = 0, max = 1000 },
+  { name = "DynRel", kind = "ms", min = 0, max = 1000 },
   { name = "DynType", kind = "enum", options=["Ducking", "Gating"] },
   { name = "Trails", kind = "bool" },
 ]
@@ -1817,12 +1873,12 @@ params = [
 category = "Delay"
 name = "Reverse Delay"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "ModMode", kind = "enum", options=["Off", "Chorus", "Vibrato"] },
   { name = "Speed", kind = "percent" },
   { name = "Depth", kind = "percent" },
@@ -1834,16 +1890,16 @@ params = [
 category = "Delay"
 name = "Vintage Digital"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "BitDepth", kind = "enum", options=["6bits", "8bits", "10bits", "11bits", "12bits", "14bits", "16bits", "24bits"] },
-  { name = "SampleRate", kind = "hz" },
+  { name = "SampleRate", kind = "hz", min = 20, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Rate", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
   { name = "Scale", kind = "percent" },
-  { name = "Headroom", kind = "db" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1851,18 +1907,18 @@ params = [
 category = "Delay"
 name = "Vintage Swell"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "BitDepth", kind = "enum", options=["6bits", "8bits", "10bits", "11bits", "12bits", "14bits", "16bits", "24bits"] },
-  { name = "SampleRate", kind = "hz" },
+  { name = "SampleRate", kind = "hz", min = 20, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Rate", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
   { name = "Scale", kind = "percent" },
-  { name = "Headroom", kind = "db" },
-  { name = "Threshold", kind = "db" },
-  { name = "Attack", kind = "ms" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1870,14 +1926,14 @@ params = [
 category = "Delay"
 name = "Pitch Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Interval", kind = "percent" }, # not percent, but a range from -13 to +13
-  { name = "Cents", kind = "percent" }, # not percent, but a range from -48 to +48
+  { name = "Interval", kind = "semitones", min = -13, max = 13 }, # not percent, but a range from -13 to +13
+  { name = "Cents", kind = "cents", min = -48, max = 48 }, # not percent, but a range from -48 to +48
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Scale", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -1886,14 +1942,14 @@ params = [
 category = "Delay"
 name = "Transistor Tape"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "WowFluttr", kind = "percent" },
   { name = "Scale", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Headroom", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1901,24 +1957,24 @@ params = [
 category = "Delay"
 name = "Harmony Delay"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Key", kind = "enum", options=["A", "A Sharp", "B", "C", "C Sharp", "D", "D Sharp", "E", "F", "F Sharp", "G", "G Sharp" ] },
-  { name = "Scale", kind = "enum", options=["Major", "Minor", "Major Pentatonic", "Minor Pentatonic", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Whole Diminished" ] },
+  { name = "Key", kind = "note" },
+  { name = "Scale", kind = "scale" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "V1 Shift", kind = "percent" }, #not percent, but range from -8 to +8
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "V1 Shift", kind = "semitones", min = -8, max = 8 }, #not percent, but range from -8 to +8
   { name = "V1 Level", kind = "percent" },
-  { name = "V1 Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
-  { name = "V2 Shift", kind = "percent" }, #not percent, but range from -8 to +8
+  { name = "V1 Pan", kind = "pan" },
+  { name = "V2 Shift", kind = "semitones", min = -8, max = 8 }, #not percent, but range from -8 to +8
   { name = "V2 Level", kind = "percent" },
-  { name = "V3 Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "V3 Pan", kind = "pan" },
   { name = "V1 Scale", kind = "percent" },
   { name = "V2 Scale", kind = "percent" },
   { name = "Root Level", kind = "percent" },
-  { name = "Root Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Root Pan", kind = "pan" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1926,7 +1982,7 @@ params = [
 category = "Delay"
 name = "Bucket Brigade"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Scale", kind = "percent" },
   { name = "Noise", kind = "percent" },
@@ -1940,16 +1996,16 @@ params = [
 category = "Delay"
 name = "Adriatic Delay"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Scale", kind = "percent" },
   { name = "Feedback", kind = "percent" },
   { name = "Noise", kind = "percent" },
   { name = "BBD Size", kind = "enum", options=["1024", "2048", "4096", "8192" ] },
   { name = "Mix", kind = "percent" },
-  { name = "Rate", kind = "hz" },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Headroom", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -1958,19 +2014,19 @@ params = [
 category = "Delay"
 name = "Adriatic Swell"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Scale", kind = "percent" },
   { name = "Feedback", kind = "percent" },
   { name = "Noise", kind = "percent" },
   { name = "BBD Size", kind = "enum", options=["1024", "2048", "4096", "8192" ] },
   { name = "Mix", kind = "percent" },
-  { name = "Rate", kind = "hz" },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
   { name = "Spread", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Headroom", kind = "percent" },
-  { name = "Threshold", kind = "db" },
-  { name = "Attack", kind = "ms" },
+  { name = "Threshold", kind = "db", min = -60, max = 12 },
+  { name = "Attack", kind = "ms", min = 0, max = 1000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -1978,12 +2034,12 @@ params = [
 category = "Delay"
 name = "Elephant Man"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Mode", kind = "enum", options=["Chorus", "Vibrato" ] },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Scale", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Noise", kind = "percent" },
@@ -1995,12 +2051,12 @@ params = [
 category = "Delay"
 name = "Multi Pass"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Pattern", kind = "int" }, # range from 1 to 8
+  { name = "Pattern", kind = "int", min = 1, max = 8 }, # range from 1 to 8
   { name = "Mode", kind = "enum", options=["Delay", "Echo" ] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2008,8 +2064,8 @@ params = [
 category = "Delay"
 name = "Glitch Delay"
 params = [
-  { name = "Time", kind = "ms" },
-  { name = "Delay Div", kind = "int" }, # range from 1 to 16
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
+  { name = "Delay Div", kind = "int", min = 1, max = 16 }, # range from 1 to 16
   { name = "Mix", kind = "percent" },
   { name = "Feedback", kind = "percent" },
   { name = "Slice Fdbk", kind = "percent" },
@@ -2018,11 +2074,11 @@ params = [
   { name = "Reverse", kind = "percent" },
   { name = "Seq Drift", kind = "percent" },
   { name = "Smoothing", kind = "percent" },
-  { name = "Interval 1", kind = "percent" }, # not percent but range from -12 to +12
-  { name = "Interval 2", kind = "percent" }, # not percent but range from -12 to +12
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Interval 1", kind = "semitones", min = -12, max = 12 }, # not percent but range from -12 to +12
+  { name = "Interval 2", kind = "semitones", min = -12, max = 12 }, # not percent but range from -12 to +12
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2030,15 +2086,15 @@ params = [
 category = "Delay"
 name = "Euclidian Delay"
 params = [
-  { name = "Step Time", kind = "ms" },
+  { name = "Step Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
-  { name = "Steps", kind = "int" }, # range from 1 to 16
-  { name = "Fill", kind = "int" }, # range from 1 to 16
-  { name = "Rotate", kind = "int" }, # range from 0 to 15
+  { name = "Steps", kind = "int", min = 1, max = 16 }, # range from 1 to 16
+  { name = "Fill", kind = "int", min = 1, max = 16 }, # range from 1 to 16
+  { name = "Rotate", kind = "int", min = 0, max = 15 }, # range from 0 to 15
   { name = "Mix", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2046,25 +2102,25 @@ params = [
 category = "Delay"
 name = "ADT"
 params = [
-  { name = "Delay 1", kind = "ms" },
-  { name = "Delay 2", kind = "ms" },
+  { name = "Delay 1", kind = "ms", min = 0, max = 1000 },
+  { name = "Delay 2", kind = "ms", min = 0, max = 1000 },
   { name = "Wow Flutr1", kind = "percent" },
   { name = "Wow Flutr2", kind = "percent" },
   { name = "Saturate1", kind = "percent" },
   { name = "Saturate2", kind = "percent" },
-  { name = "Deck1 Vol", kind = "db" },
-  { name = "Deck2 Vol", kind = "db" },
+  { name = "Deck1 Vol", kind = "db", min = -60, max = 12 },
+  { name = "Deck2 Vol", kind = "db", min = -60, max = 12 },
   { name = "Deck2 Pol", kind = "enum", options=["Normal", "Invert" ] },
-  { name = "Mod Rate", kind = "hz" },
+  { name = "Mod Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Mod Depth", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "TapeSpeed", kind = "enum", options=["7.5ips", "15ips", "30ips" ] },
   { name = "Texture", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Deck1 Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
-  { name = "Deck2 Pan", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
-  { name = "Env Thresh", kind = "percent" }, #from off to 10
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Deck1 Pan", kind = "pan" },
+  { name = "Deck2 Pan", kind = "pan" },
+  { name = "Env Thresh", kind = "int", min = 0, max = 10, off = "min" }, #from off to 10
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2072,24 +2128,24 @@ params = [
 category = "Delay"
 name = "CrissCross"
 params = [
-  { name = "Time A", kind = "ms" },
-  { name = "Time B", kind = "ms" },
+  { name = "Time A", kind = "ms", min = 0, max = 1000 },
+  { name = "Time B", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback A", kind = "percent" },
   { name = "Feedback B", kind = "percent" },
-  { name = "Pan A", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
-  { name = "Pan B", kind = "enum", options=["Left100", "Left99", "Left98", "Left97", "Left96", "Left95", "Left94", "Left93", "Left92", "Left91", "Left90", "Left89", "Left88", "Left87", "Left86", "Left85", "Left84", "Left83", "Left82", "Left81", "Left80", "Left79", "Left78", "Left77", "Left76", "Left75", "Left74", "Left73", "Left72", "Left71", "Left70", "Left69", "Left68", "Left67", "Left66", "Left65", "Left64", "Left63", "Left62", "Left61", "Left60", "Left59", "Left58", "Left57", "Left56", "Left55", "Left54", "Left53", "Left52", "Left51", "Left50", "Left49", "Left48", "Left47", "Left46", "Left45", "Left44", "Left43", "Left42", "Left41", "Left40", "Left39", "Left38", "Left37", "Left36", "Left35", "Left34", "Left33", "Left32", "Left31", "Left30", "Left29", "Left28", "Left27", "Left26", "Left25", "Left24", "Left23", "Left22", "Left21", "Left20", "Left19", "Left18", "Left17", "Left16", "Left15", "Left14", "Left13", "Left12", "Left11", "Left10", "Left9", "Left8", "Left7", "Left6", "Left5", "Left4", "Left3", "Left2", "Left1", "Center", "Right1", "Right2", "Right3", "Right4", "Right5", "Right6", "Right7", "Right8", "Right9", "Right10", "Right11", "Right12", "Right13", "Right14", "Right15", "Right16", "Right17", "Right18", "Right19", "Right20", "Right21", "Right22", "Right23", "Right24", "Right25", "Right26", "Right27", "Right28", "Right29", "Right30", "Right31", "Right32", "Right33", "Right34", "Right35", "Right36", "Right37", "Right38", "Right39", "Right40", "Right41", "Right42", "Right43", "Right44", "Right45", "Right46", "Right47", "Right48", "Right49", "Right50", "Right51", "Right52", "Right53", "Right54", "Right55", "Right56", "Right57", "Right58", "Right59", "Right60", "Right61", "Right62", "Right63", "Right64", "Right65", "Right66", "Right67", "Right68", "Right69", "Right70", "Right71", "Right72", "Right73", "Right74", "Right75", "Right76", "Right77", "Right78", "Right79", "Right80", "Right81", "Right82", "Right83", "Right84", "Right85", "Right86", "Right87", "Right88", "Right89", "Right90", "Right91", "Right92", "Right93", "Right94", "Right95", "Right96", "Right97", "Right98", "Right99", "Right100"] },
+  { name = "Pan A", kind = "pan" },
+  { name = "Pan B", kind = "pan" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "CrossFeed", kind = "percent" },
-  { name = "Headroom", kind = "db" },
-  { name = "ModRate", kind = "hz" },
+  { name = "Headroom", kind = "db", min = -60, max = 12 },
+  { name = "ModRate", kind = "hz", min = 20, max = 20000 },
   { name = "ModDepth", kind = "percent" },
   { name = "Shape", kind = "enum", options=["Sine", "Triangle"] },
   { name = "Phase", kind = "enum", options=["0", "90", "180"] },
   { name = "BitDepth", kind = "enum", options=["6bits", "8bits", "10bits", "11bits", "12bits", "14bits", "16bits", "24bits"] },
-  { name = "SampleRate", kind = "hz" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "SampleRate", kind = "hz", min = 20, max = 20000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2097,28 +2153,28 @@ params = [
 category = "Delay"
 name = "Tesselator"
 params = [
-  { name = "First", kind = "ms" },
-  { name = "Last", kind = "ms" },
-  { name = "Steps", kind = "int" }, #range 1 to 50
+  { name = "First", kind = "ms", min = 0, max = 1000 },
+  { name = "Last", kind = "ms", min = 0, max = 1000 },
+  { name = "Steps", kind = "int", min = 1, max = 50 }, #range 1 to 50
   { name = "Direction", kind = "enum", options=["Forward", "Reverse", "FWD/Rev"] },
   { name = "Boomerang", kind = "bool" },
   { name = "Operation", kind = "enum", options=["Mute All", "Dry Kill", "Normal"] },
   { name = "Ramp", kind = "enum", options=["Speed", "Pitch" ] },
-  { name = "Speed", kind = "percent" }, # from 0% to 200%
-  { name = "Pitch", kind = "int" }, #from -12 to +12
+  { name = "Speed", kind = "percent", min = 0, max = 200 }, # from 0% to 200%
+  { name = "Pitch", kind = "semitones", min = -12, max = 12 }, #from -12 to +12
   { name = "HP Filter", kind = "percent" },
   { name = "LP Filter", kind = "percent" },
   { name = "FX Level", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Delay"
 name = "Ratchet"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "FX Level", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Operation", kind = "enum", options=["Mute All", "Dry Kill", "Normal"] },
 ]
 
@@ -2126,12 +2182,12 @@ params = [
 category = "Delay"
 name = "Ping Pong Legacy"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Offset", kind = "percent" },
   { name = "Spread", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2139,12 +2195,12 @@ params = [
 category = "Delay"
 name = "Dynamic"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Threshold", kind = "percent" },
   { name = "Ducking", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2152,12 +2208,12 @@ params = [
 category = "Delay"
 name = "Stereo"
 params = [
-  { name = "L Time", kind = "ms" },
+  { name = "L Time", kind = "ms", min = 0, max = 1000 },
   { name = "L Feedback", kind = "percent" },
-  { name = "R Time", kind = "ms" },
+  { name = "R Time", kind = "ms", min = 0, max = 1000 },
   { name = "R Feedback", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2165,12 +2221,12 @@ params = [
 category = "Delay"
 name = "Digital"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Bass", kind = "percent" },
   { name = "Treble", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2178,12 +2234,12 @@ params = [
 category = "Delay"
 name = "Dig w/Mod"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "ModSpeed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2191,12 +2247,12 @@ params = [
 category = "Delay"
 name = "Reverse"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "ModSpeed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2204,12 +2260,12 @@ params = [
 category = "Delay"
 name = "Lo Res"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Tone", kind = "percent" },
   { name = "Res", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2217,12 +2273,12 @@ params = [
 category = "Delay"
 name = "Tube Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Wow Flt", kind = "percent" },
   { name = "Drive", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Dry Thru", kind = "bool" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2231,12 +2287,12 @@ params = [
 category = "Delay"
 name = "Tape Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Bass", kind = "percent" },
   { name = "Treble", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Dry Thru", kind = "bool" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2245,12 +2301,12 @@ params = [
 category = "Delay"
 name = "Sweep Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Speed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Dry Thru", kind = "bool" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2259,12 +2315,12 @@ params = [
 category = "Delay"
 name = "Echo Platter"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Wow Flt", kind = "percent" },
   { name = "Drive", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Dry Thru", kind = "bool" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2273,12 +2329,12 @@ params = [
 category = "Delay"
 name = "Analog Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Bass", kind = "percent" },
   { name = "Treble", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2286,12 +2342,12 @@ params = [
 category = "Delay"
 name = "Analog w/Mod"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "ModSpeed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2299,12 +2355,12 @@ params = [
 category = "Delay"
 name = "Auto-Volume Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Swell", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2312,13 +2368,13 @@ params = [
 category = "Delay"
 name = "Multi-Head"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Heads 1-2", kind = "enum", options=["1-2 Off", "HD1 On", "1-2 On", "HD2 On"] },
   { name = "Heads 3-4", kind = "enum", options=["3-4 Off", "HD3 On", "3-4 On", "HD4 On"] },
   { name = "Drive", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2326,12 +2382,12 @@ params = [
 category = "Delay"
 name = "Bubble Echo"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Speed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2339,12 +2395,12 @@ params = [
 category = "Delay"
 name = "Phaze Eko"
 params = [
-  { name = "Time", kind = "ms" },
+  { name = "Time", kind = "ms", min = 0, max = 1000 },
   { name = "Feedback", kind = "percent" },
   { name = "Speed", kind = "percent" },
   { name = "Depth", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2354,18 +2410,18 @@ params = [
 category = "Reverb"
 name = "Dynamic Hall"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
   { name = "Room Size", kind = "enum", options=["10m", "20m", "30m"] },
   { name = "Diffusion", kind = "percent" },
-  { name = "Damping", kind = "hz" },
+  { name = "Damping", kind = "hz", min = 20, max = 20000 },
   { name = "Mix", kind = "percent" },
   { name = "Motion", kind = "percent" },
-  { name = "Low Freq", kind = "hz" },
-  { name = "Low Gain", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "Low Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2373,17 +2429,17 @@ params = [
 category = "Reverb"
 name = "Dynamic Plate"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Damping", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Damping", kind = "hz", min = 20, max = 20000 },
   { name = "MotRate", kind = "percent" },
   { name = "MotRange", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Low Freq", kind = "hz" },
-  { name = "Low Gain", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "Low Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2391,18 +2447,18 @@ params = [
 category = "Reverb"
 name = "Dynamic Room"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Damping", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Damping", kind = "hz", min = 20, max = 20000 },
   { name = "Diffusion", kind = "percent" },
   { name = "MotRate", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Low Freq", kind = "hz" },
-  { name = "Low Gain", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "EarlyReflc", kind = "percent" }, #from 0.0 to 2.0
-  { name = "Level", kind = "db" },
+  { name = "Low Freq", kind = "hz", min = 20, max = 20000 },
+  { name = "Low Gain", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "EarlyReflc", kind = "number", min = 0, max = 2 }, #from 0.0 to 2.0
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2410,15 +2466,15 @@ params = [
 category = "Reverb"
 name = "Dynamic Hall"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Damping", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Damping", kind = "hz", min = 20, max = 20000 },
   { name = "Diffusion", kind = "percent" },
   { name = "Shape", kind = "enum", options=["Early100", "Early99", "Early98", "Early97", "Early96", "Early95", "Early94", "Early93", "Early92", "Early91", "Early90", "Early89", "Early88", "Early87", "Early86", "Early85", "Early84", "Early83", "Early82", "Early81", "Early80", "Early79", "Early78", "Early77", "Early76", "Early75", "Early74", "Early73", "Early72", "Early71", "Early70", "Early69", "Early68", "Early67", "Early66", "Early65", "Early64", "Early63", "Early62", "Early61", "Early60", "Early59", "Early58", "Early57", "Early56", "Early55", "Early54", "Early53", "Early52", "Early51", "Early50", "Early49", "Early48", "Early47", "Early46", "Early45", "Early44", "Early43", "Early42", "Early41", "Early40", "Early39", "Early38", "Early37", "Early36", "Early35", "Early34", "Early33", "Early32", "Early31", "Early30", "Early29", "Early28", "Early27", "Early26", "Early25", "Early24", "Early23", "Early22", "Early21", "Early20", "Early19", "Early18", "Early17", "Early16", "Early15", "Early14", "Early13", "Early12", "Early11", "Early10", "Early9", "Early8", "Early7", "Early6", "Early5", "Early4", "Early3", "Early2", "Early1", "Even", "Late1", "Late2", "Late3", "Late4", "Late5", "Late6", "Late7", "Late8", "Late9", "Late10", "Late11", "Late12", "Late13", "Late14", "Late15", "Late16", "Late17", "Late18", "Late19", "Late20", "Late21", "Late22", "Late23", "Late24", "Late25", "Late26", "Late27", "Late28", "Late29", "Late30", "Late31", "Late32", "Late33", "Late34", "Late35", "Late36", "Late37", "Late38", "Late39", "Late40", "Late41", "Late42", "Late43", "Late44", "Late45", "Late46", "Late47", "Late48", "Late49", "Late50", "Late51", "Late52", "Late53", "Late54", "Late55", "Late56", "Late57", "Late58", "Late59", "Late60", "Late61", "Late62", "Late63", "Late64", "Late65", "Late66", "Late67", "Late68", "Late69", "Late70", "Late71", "Late72", "Late73", "Late74", "Late75", "Late76", "Late77", "Late78", "Late79", "Late80", "Late81", "Late82", "Late83", "Late84", "Late85", "Late86", "Late87", "Late88", "Late89", "Late90", "Late91", "Late92", "Late93", "Late94", "Late95", "Late96", "Late97", "Late98", "Late99", "Late100"] },
   { name = "Mix", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2427,21 +2483,21 @@ category = "Reverb"
 name = "Shimmer"
 params = [
   { name = "Type", kind = "enum", options=["Luster", "Sheen"] },
-  { name = "Pitch A", kind = "percent"}, #not percent, it goes from Oct Down, to -11, -10, ..., -1, -0.9, ..., -0.1, Unison, and all the way back up to Oct Up
-  { name = "Pitch B", kind = "percent"}, #not percent, it goes from Oct Down, to -11, -10, ..., -1, -0.9, ..., -0.1, Unison, and all the way back up to Oct Up
+  { name = "Pitch A", kind = "semitones", min = -12, max = 12, decimals = 1 }, #not percent, it goes from Oct Down, to -11, -10, ..., -1, -0.9, ..., -0.1, Unison, and all the way back up to Oct Up
+  { name = "Pitch B", kind = "semitones", min = -12, max = 12, decimals = 1 }, #not percent, it goes from Oct Down, to -11, -10, ..., -1, -0.9, ..., -0.1, Unison, and all the way back up to Oct Up
   { name = "Intensity", kind = "percent"},
   { name = "Feedback", kind = "percent"},
   { name = "Mix", kind = "percent" },
-  { name = "Shape", kind = "enum", options=["A 100", "A 99", "A 98", "A 97", "A 96", "A 95", "A 94", "A 93", "A 92", "A 91", "A 90", "A 89", "A 88", "A 87", "A 86", "A 85", "A 84", "A 83", "A 82", "A 81", "A 80", "A 79", "A 78", "A 77", "A 76", "A 75", "A 74", "A 73", "A 72", "A 71", "A 70", "A 69", "A 68", "A 67", "A 66", "A 65", "A 64", "A 63", "A 62", "A 61", "A 60", "A 59", "A 58", "A 57", "A 56", "A 55", "A 54", "A 53", "A 52", "A 51", "A 50", "A 49", "A 48", "A 47", "A 46", "A 45", "A 44", "A 43", "A 42", "A 41", "A 40", "A 39", "A 38", "A 37", "A 36", "A 35", "A 34", "A 33", "A 32", "A 31", "A 30", "A 29", "A 28", "A 27", "A 26", "A 25", "A 24", "A 23", "A 22", "A 21", "A 20", "A 19", "A 18", "A 17", "A 16", "A 15", "A 14", "A 13", "A 12", "A 11", "A 10", "A 9", "A 8", "A 7", "A 6", "A 5", "A 4", "A 3", "A 2", "A 1", "Even", "B 1", "B 2", "B 3", "B 4", "B 5", "B 6", "B 7", "B 8", "B 9", "B 10", "B 11", "B 12", "B 13", "B 14", "B 15", "B 16", "B 17", "B 18", "B 19", "B 20", "B 21", "B 22", "B 23", "B 24", "B 25", "B 26", "B 27", "B 28", "B 29", "B 30", "B 31", "B 32", "B 33", "B 34", "B 35", "B 36", "B 37", "B 38", "B 39", "B 40", "B 41", "B 42", "B 43", "B 44", "B 45", "B 46", "B 47", "B 48", "B 49", "B 50", "B 51", "B 52", "B 53", "B 54", "B 55", "B 56", "B 57", "B 58", "B 59", "B 60", "B 61", "B 62", "B 63", "B 64", "B 65", "B 66", "B 67", "B 68", "B 69", "B 70", "B 71", "B 72", "B 73", "B 74", "B 75", "B 76", "B 77", "B 78", "B 79", "B 80", "B 81", "B 82", "B 83", "B 84", "B 85", "B 86", "B 87", "B 88", "B 89", "B 90", "B 91", "B 92", "B 93", "B 94", "B 95", "B 96", "B 97", "B 98", "B 99", "B 100"] }
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
+  { name = "Shape", kind = "enum", options=["A 100", "A 99", "A 98", "A 97", "A 96", "A 95", "A 94", "A 93", "A 92", "A 91", "A 90", "A 89", "A 88", "A 87", "A 86", "A 85", "A 84", "A 83", "A 82", "A 81", "A 80", "A 79", "A 78", "A 77", "A 76", "A 75", "A 74", "A 73", "A 72", "A 71", "A 70", "A 69", "A 68", "A 67", "A 66", "A 65", "A 64", "A 63", "A 62", "A 61", "A 60", "A 59", "A 58", "A 57", "A 56", "A 55", "A 54", "A 53", "A 52", "A 51", "A 50", "A 49", "A 48", "A 47", "A 46", "A 45", "A 44", "A 43", "A 42", "A 41", "A 40", "A 39", "A 38", "A 37", "A 36", "A 35", "A 34", "A 33", "A 32", "A 31", "A 30", "A 29", "A 28", "A 27", "A 26", "A 25", "A 24", "A 23", "A 22", "A 21", "A 20", "A 19", "A 18", "A 17", "A 16", "A 15", "A 14", "A 13", "A 12", "A 11", "A 10", "A 9", "A 8", "A 7", "A 6", "A 5", "A 4", "A 3", "A 2", "A 1", "Even", "B 1", "B 2", "B 3", "B 4", "B 5", "B 6", "B 7", "B 8", "B 9", "B 10", "B 11", "B 12", "B 13", "B 14", "B 15", "B 16", "B 17", "B 18", "B 19", "B 20", "B 21", "B 22", "B 23", "B 24", "B 25", "B 26", "B 27", "B 28", "B 29", "B 30", "B 31", "B 32", "B 33", "B 34", "B 35", "B 36", "B 37", "B 38", "B 39", "B 40", "B 41", "B 42", "B 43", "B 44", "B 45", "B 46", "B 47", "B 48", "B 49", "B 50", "B 51", "B 52", "B 53", "B 54", "B 55", "B 56", "B 57", "B 58", "B 59", "B 60", "B 61", "B 62", "B 63", "B 64", "B 65", "B 66", "B 67", "B 68", "B 69", "B 70", "B 71", "B 72", "B 73", "B 74", "B 75", "B 76", "B 77", "B 78", "B 79", "B 80", "B 81", "B 82", "B 83", "B 84", "B 85", "B 86", "B 87", "B 88", "B 89", "B 90", "B 91", "B 92", "B 93", "B 94", "B 95", "B 96", "B 97", "B 98", "B 99", "B 100"] },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
   { name = "Room Size", kind = "enum", options=["10m", "20m", "30m"] },
-  { name = "Damping", kind = "hz" },
+  { name = "Damping", kind = "hz", min = 20, max = 20000 },
   { name = "Diffusion", kind = "percent" },
   { name = "Motion", kind = "percent" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
-  { name = "Level", kind = "db" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2450,12 +2506,12 @@ category = "Reverb"
 name = "Hot Springs"
 params = [
   { name = "Dwell", kind = "percent" },
-  { name = "Spring Count", kind = "percent" }, #from 0.0 to 3.0
+  { name = "Spring Count", kind = "number", min = 0, max = 3 }, #from 0.0 to 3.0
   { name = "Drip", kind = "enum", options=["Low", "Medium", "High"] },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2463,16 +2519,16 @@ params = [
 category = "Reverb"
 name = "Glitz"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Delay", kind = "ms" },
-  { name = "Rate", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Delay", kind = "ms", min = 0, max = 1000 },
+  { name = "Rate", kind = "hz", min = 20, max = 20000 },
   { name = "Depth", kind = "percent" },
-  { name = "Xover", kind = "hz" },
+  { name = "Xover", kind = "hz", min = 20, max = 20000 },
   { name = "Mod Mix", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2481,12 +2537,12 @@ params = [
 category = "Reverb"
 name = "Ganymede"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
   { name = "Tone", kind = "percent" },
   { name = "Modulation", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2494,12 +2550,12 @@ params = [
 category = "Reverb"
 name = "Searchlights"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Modulation", kind = "percent" },
   { name = "Speed", kind = "percent" },
   { name = "Intensity", kind = "percent" },
@@ -2511,15 +2567,15 @@ params = [
 category = "Reverb"
 name = "Plateaux"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
   { name = "Tone", kind = "percent" },
   { name = "Modulation", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Pitch 1", kind = "percent" }, #not percent but range from -24 to +24
-  { name = "Cents 1", kind = "percent" }, #not percent but range from -50.0 to +50.0
-  { name = "Pitch 2", kind = "percent" }, #not percent but range from -24 to +24
-  { name = "Cents 2", kind = "percent" }, #not percent but range from -50.0 to +50.0
+  { name = "Pitch 1", kind = "semitones", min = -24, max = 24 }, #not percent but range from -24 to +24
+  { name = "Cents 1", kind = "cents", min = -50, max = 50 }, #not percent but range from -50.0 to +50.0
+  { name = "Pitch 2", kind = "semitones", min = -24, max = 24 }, #not percent but range from -24 to +24
+  { name = "Cents 2", kind = "cents", min = -50, max = 50 }, #not percent but range from -50.0 to +50.0
   { name = "Pitch Mix", kind = "percent" },
   { name = "Trails", kind = "bool" },
 ]
@@ -2528,14 +2584,14 @@ params = [
 category = "Reverb"
 name = "Double Tank"
 params =  [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
   { name = "Rate", kind = "percent" },
   { name = "Modulation", kind = "percent" },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2543,12 +2599,12 @@ params =  [
 category = "Reverb"
 name = "Plate"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2556,12 +2612,12 @@ params = [
 category = "Reverb"
 name = "Room"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2569,12 +2625,12 @@ params = [
 category = "Reverb"
 name = "Chamber"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2582,12 +2638,12 @@ params = [
 category = "Reverb"
 name = "Hall"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2595,12 +2651,12 @@ params = [
 category = "Reverb"
 name = "Echo"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2608,12 +2664,12 @@ params = [
 category = "Reverb"
 name = "Tile"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2621,12 +2677,12 @@ params = [
 category = "Reverb"
 name = "Cave"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2634,12 +2690,12 @@ params = [
 category = "Reverb"
 name = "Ducking"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2647,12 +2703,12 @@ params = [
 category = "Reverb"
 name = "Octo"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "Intensity", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "Intensity", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2660,12 +2716,12 @@ params = [
 category = "Reverb"
 name = "63 Spring"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2673,12 +2729,12 @@ params = [
 category = "Reverb"
 name = "Spring"
 params = [
-  { name = "Decay", kind = "ms" },
-  { name = "PreDelay", kind = "ms" },
-  { name = "Low Cut", kind = "hz" },
-  { name = "High Cut", kind = "hz" },
+  { name = "Decay", kind = "ms", min = 0, max = 1000 },
+  { name = "PreDelay", kind = "ms", min = 0, max = 1000 },
+  { name = "Low Cut", kind = "lowcut", min = 20, max = 500 },
+  { name = "High Cut", kind = "highcut", min = 500, max = 20000 },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2689,7 +2745,7 @@ params = [
   { name = "Dwell", kind = "percent" },
   { name = "Condition", kind = "enum", options=["Stable", "Critical", "Hazard"] },
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
   { name = "Trails", kind = "bool" },
 ]
 
@@ -2700,25 +2756,25 @@ category = "Pitch/Synth"
 name = "Pitch Wham"
 params = [
   { name = "Position", kind = "percent" },
-  { name = "Heel Pitch", kind = "percent" }, #not percent but range from -24 to +24
-  { name = "Toe Pitch", kind = "percent" }, #not percent but range from -24 to +24
+  { name = "Heel Pitch", kind = "semitones", min = -24, max = 24 }, #not percent but range from -24 to +24
+  { name = "Toe Pitch", kind = "semitones", min = -24, max = 24 }, #not percent but range from -24 to +24
   { name = "Mix", kind = "percent" },
-  { name = "Level", kind = "db" },
+  { name = "Level", kind = "db", min = -60, max = 12 },
 ]
 
 [[module]]
 category = "Pitch/Synth"
 name = "Twin Harmony"
 params = [
-  { name = "V1Key", kind = "enum", options=["A", "A Sharp", "B", "C", "C Sharp", "D", "D Sharp", "E", "F", "F Sharp", "G", "G Sharp" ] },
-  { name = "V1Scale", kind = "enum", options=["Major", "Minor", "Major Pentatonic", "Minor Pentatonic", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Whole Diminished" ] },
-  { name = "V1Shift", kind = "percent" }, #not percent but intervals ranging from -9th to +9th
+  { name = "V1Key", kind = "note" },
+  { name = "V1Scale", kind = "scale" },
+  { name = "V1Shift", kind = "interval" }, #not percent but intervals ranging from -9th to +9th
   { name = "V1Level", kind = "percent" },
   { name = "Mix", kind = "percent" },
   { name = "Level", kind = "percent" },
-  { name = "V2Key", kind = "enum", options=["A", "A Sharp", "B", "C", "C Sharp", "D", "D Sharp", "E", "F", "F Sharp", "G", "G Sharp" ] },
-  { name = "V2Scale", kind = "enum", options=["Major", "Minor", "Major Pentatonic", "Minor Pentatonic", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Whole Diminished" ] },
-  { name = "V2Shift", kind = "percent" }, #not percent but intervals ranging from -9th to +9th
+  { name = "V2Key", kind = "note" },
+  { name = "V2Scale", kind = "scale" },
+  { name = "V2Shift", kind = "interval" }, #not percent but intervals ranging from -9th to +9th
   { name = "V2Level", kind = "percent" },
 ]
 
@@ -2726,9 +2782,9 @@ params = [
 category = "Pitch/Synth"
 name = "Simple Pitch"
 params = [
-  { name = "Interval", kind = "percent" }, #not percent but range from -24 to +24
-  { name = "Cents", kind = "percent" }, #not percent but range from -50.0 to +50.0
-  { name = "Delay", kind = "ms" }, #off to 100ms
+  { name = "Interval", kind = "semitones", min = -24, max = 24 }, #not percent but range from -24 to +24
+  { name = "Cents", kind = "cents", min = -50, max = 50 }, #not percent but range from -50.0 to +50.0
+  { name = "Delay", kind = "ms", min = 0, max = 1000 }, #off to 100ms
   { name = "Shift Level", kind = "percent" },
   { name = "Mix", kind = "percent" },
   { name = "Level", kind = "percent" },
@@ -2798,7 +2854,7 @@ params = [
 category = "Filter"
 name = "Mutant Filter"
 params = [
-  { name = "Frequency", kind = "hz" },
+  { name = "Frequency", kind = "hz", min = 20, max = 20000 },
   { name = "Resonance", kind = "percent" },
 ]
 
@@ -2806,7 +2862,7 @@ params = [
 category = "Filter"
 name = "Mystery Filter"
 params = [
-  { name = "Frequency", kind = "hz" },
+  { name = "Frequency", kind = "hz", min = 20, max = 20000 },
   { name = "Resonance", kind = "percent" },
 ]
 
@@ -2814,7 +2870,7 @@ params = [
 category = "Filter"
 name = "Autofilter"
 params = [
-  { name = "Frequency", kind = "hz" },
+  { name = "Frequency", kind = "hz", min = 20, max = 20000 },
   { name = "Resonance", kind = "percent" },
 ]
 
@@ -2921,7 +2977,7 @@ params = [
 category = "Vol/Pan"
 name = "Pan"
 params = [
-  { name = "Pan", kind = "percent" },
+  { name = "Pan", kind = "pan" },
 ]
 
 [[module]]

@@ -510,6 +510,77 @@ fn value_to_param(v: &Value) -> ParamValue {
     }
 }
 
+/// A parameter value with its MessagePack type PRESERVED — unlike
+/// [`ParamValue`], which coerces `Integer` into `Float`. Used to reverse-engineer
+/// how the device encodes each param kind (normalized `0..1` float vs int index).
+#[derive(Clone, Debug, PartialEq)]
+pub enum RawParam {
+    Bool(bool),
+    F32(f32),
+    F64(f64),
+    Int(i64),
+    Other(String),
+}
+
+impl std::fmt::Display for RawParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            RawParam::Bool(b) => write!(f, "Bool({b})"),
+            RawParam::F32(v) => write!(f, "F32({v:.4})"),
+            RawParam::F64(v) => write!(f, "F64({v:.4})"),
+            RawParam::Int(v) => write!(f, "Int({v})"),
+            RawParam::Other(s) => write!(f, "Other({s})"),
+        }
+    }
+}
+
+fn value_to_raw(v: &Value) -> RawParam {
+    match v {
+        Value::Boolean(b) => RawParam::Bool(*b),
+        Value::F32(f) => RawParam::F32(*f),
+        Value::F64(f) => RawParam::F64(*f),
+        Value::Integer(i) => RawParam::Int(i.as_i64().unwrap_or(0)),
+        other => RawParam::Other(format!("{other:?}")),
+    }
+}
+
+fn extract_raw_params(block: &Value) -> Vec<RawParam> {
+    let Some(sub) = as_map(block).and_then(|m| map_get(m, 20)).and_then(as_map) else {
+        return vec![];
+    };
+    let mut best: Option<&Vec<Value>> = None;
+    for (k, v) in sub {
+        if k.as_u64() == Some(24) {
+            continue; // block meta, not values
+        }
+        if let Some(arr) = as_map(v).and_then(|m| map_get(m, 4)).and_then(|x| x.as_array()) {
+            if best.map_or(true, |b| arr.len() > b.len()) {
+                best = Some(arr);
+            }
+        }
+    }
+    best.map(|arr| arr.iter().map(value_to_raw).collect()).unwrap_or_default()
+}
+
+/// Raw per-slot parameter values with MessagePack types preserved. Returns
+/// `(slot_index, values)` for each chain block that has a populated value array.
+/// For RE of the on-wire value encoding (see [`RawParam`]).
+pub fn raw_chain_params(data: &[u8]) -> Vec<(usize, Vec<RawParam>)> {
+    let Some(root) = parse_preset_value(data) else { return vec![]; };
+    let chain = as_map(&root)
+        .and_then(|m| map_get(m, 0)).and_then(as_map)
+        .and_then(|m| map_get(m, 22)).and_then(|v| v.as_array());
+    let Some(chain) = chain else { return vec![]; };
+    let mut out = vec![];
+    for (slot, block) in chain.iter().enumerate() {
+        let vals = extract_raw_params(block);
+        if !vals.is_empty() {
+            out.push((slot, vals));
+        }
+    }
+    out
+}
+
 /// Recursively walk the decoded preset, collecting every sub-map that looks
 /// like a module entry (has a string name, an enabled flag and a slot index).
 fn collect_modules(value: &Value, out: &mut Vec<ModuleInfo>) {

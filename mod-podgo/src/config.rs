@@ -251,28 +251,103 @@ pub static FX_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
 #[derive(serde::Deserialize)]
 struct TomlParam {
     name: String,
+    /// References a built-in or `[types]`-defined param type. Defaults to "percent".
     #[serde(default)] kind: String,
+    // Optional inline overrides of the referenced type's fields.
+    #[serde(default)] unit: Option<String>,
+    #[serde(default)] min: Option<f64>,
+    #[serde(default)] max: Option<f64>,
+    #[serde(default)] decimals: Option<u8>,
+    #[serde(default)] off: Option<String>,   // "min" | "max"
+    #[serde(default)] options: Vec<String>,
+}
+/// A `[types.<name>]` entry: same fields as an inline override, plus an optional
+/// widget `kind` ("numeric" | "enum" | "bool"). Inherits the built-in type of
+/// the same name (if any), then applies whatever fields are set.
+#[derive(serde::Deserialize)]
+struct TomlType {
+    #[serde(default)] kind: String,
+    #[serde(default)] unit: Option<String>,
+    #[serde(default)] min: Option<f64>,
+    #[serde(default)] max: Option<f64>,
+    #[serde(default)] decimals: Option<u8>,
+    #[serde(default)] off: Option<String>,
     #[serde(default)] options: Vec<String>,
 }
 #[derive(serde::Deserialize)]
 struct TomlModule { name: String, #[serde(default)] params: Vec<TomlParam> }
 #[derive(serde::Deserialize)]
-struct TomlModuleFile { #[serde(default)] module: Vec<TomlModule> }
+struct TomlModuleFile {
+    #[serde(default)] types: HashMap<String, TomlType>,
+    #[serde(default)] module: Vec<TomlModule>,
+}
+
+fn parse_edge(s: &Option<String>) -> Option<Edge> {
+    match s.as_deref().map(|x| x.trim().to_ascii_lowercase()).as_deref() {
+        Some("min") => Some(Edge::Min),
+        Some("max") => Some(Edge::Max),
+        _ => None,
+    }
+}
+
+fn parse_widget(s: &str) -> ParamKind {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "enum" => ParamKind::Enum,
+        "bool" => ParamKind::Bool,
+        _ => ParamKind::Numeric,
+    }
+}
+
+/// Built-in types overlaid with any `[types]` table entries (each inheriting the
+/// built-in of the same name, then applying its set fields).
+fn build_types(toml_types: &HashMap<String, TomlType>) -> HashMap<String, ParamType> {
+    let mut types = builtin_types();
+    for (name, t) in toml_types {
+        let mut base = types.get(name).cloned().unwrap_or_default();
+        if !t.kind.trim().is_empty() { base.kind = parse_widget(&t.kind); }
+        if let Some(u) = &t.unit { base.unit = u.clone(); }
+        if let Some(v) = t.min { base.min = v; }
+        if let Some(v) = t.max { base.max = v; }
+        if let Some(v) = t.decimals { base.decimals = v; }
+        if t.off.is_some() { base.off_at = parse_edge(&t.off); }
+        if !t.options.is_empty() { base.options = t.options.clone(); }
+        types.insert(name.clone(), base);
+    }
+    types
+}
+
+/// Resolve one param against the type registry, then apply its inline overrides.
+fn resolve_param(p: TomlParam, types: &HashMap<String, ParamType>) -> ParamDef {
+    let key = if p.kind.trim().is_empty() { "percent" } else { p.kind.trim() };
+    let base = types.get(key).cloned().unwrap_or_default();
+    let mut def = ParamDef::from_type(p.name, &base);
+    if let Some(u) = p.unit { def.unit = u; }
+    if let Some(v) = p.min { def.min = v; }
+    if let Some(v) = p.max { def.max = v; }
+    if let Some(v) = p.decimals { def.decimals = v; }
+    if p.off.is_some() { def.off_at = parse_edge(&p.off); }
+    if !p.options.is_empty() {
+        def.options = p.options;
+        def.kind = ParamKind::Enum;   // inline options imply a dropdown
+    }
+    def
+}
 
 static MODULE_PARAMS: Lazy<HashMap<String, ParamSpec>> = Lazy::new(|| {
     let src = include_str!("../module_params.toml");
     match toml::from_str::<TomlModuleFile>(src) {
-        Ok(f) => f.module.into_iter()
-            .filter(|m| !m.params.is_empty())
-            .map(|m| {
-                let defs = m.params.into_iter().map(|p| ParamDef {
-                    name: p.name,
-                    kind: ParamKind::parse(&p.kind),
-                    options: p.options,
-                }).collect();
-                (m.name, ParamSpec::from_defs(defs))
-            })
-            .collect(),
+        Ok(f) => {
+            let types = build_types(&f.types);
+            f.module.into_iter()
+                .filter(|m| !m.params.is_empty())
+                .map(|m| {
+                    let defs = m.params.into_iter()
+                        .map(|p| resolve_param(p, &types))
+                        .collect();
+                    (m.name, ParamSpec::from_defs(defs))
+                })
+                .collect()
+        }
         Err(e) => {
             log::error!("failed to parse module_params.toml: {e}");
             HashMap::new()

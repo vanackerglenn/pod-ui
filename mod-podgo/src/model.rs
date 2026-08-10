@@ -1,47 +1,109 @@
 use std::collections::HashMap;
 
-/// The display kind of a single parameter, used to pick the right widget and
-/// formatting. Sourced from `module_params.toml` (`kind = "..."`).
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+/// How a parameter is rendered. The device sends only positional values
+/// (a normalized f32 0..1 for continuous params, or an int index for discrete
+/// ones), so this — and the range metadata on [`ParamDef`] — are hand-authored
+/// display hints, not anything the device reports.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ParamKind {
+    /// A continuous value on a slider (percent, dB, Hz, ms, cents, semitones…).
     #[default]
-    Percent,
-    Db,
-    Hz,
-    Ms,
-    Time,
-    Semitones,
+    Numeric,
+    /// A discrete choice shown as a dropdown (needs `options`).
     Enum,
+    /// An on/off switch shown as a checkbox.
     Bool,
-    Int,
-    Unknown,
 }
 
-impl ParamKind {
-    pub fn parse(s: &str) -> Self {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "percent" => ParamKind::Percent,
-            "db" => ParamKind::Db,
-            "hz" => ParamKind::Hz,
-            "ms" => ParamKind::Ms,
-            "time" => ParamKind::Time,
-            "semitones" => ParamKind::Semitones,
-            "enum" => ParamKind::Enum,
-            "bool" => ParamKind::Bool,
-            "int" => ParamKind::Int,
-            _ => ParamKind::Unknown,
-        }
+/// Which end of a numeric range reads "Off" instead of a number (e.g. a Low Cut
+/// filter shows "Off" at its minimum, a High Cut at its maximum).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Edge { Min, Max }
+
+/// A reusable parameter type: the widget plus its display unit/range. Defined
+/// once — as a built-in (see [`builtin_types`]) or in the `[types]` table of
+/// `module_params.toml` — and referenced by name from a param's `kind`, so
+/// common shapes (cents, pan, a Low Cut filter) aren't re-specified per model.
+#[derive(Clone, Debug)]
+pub struct ParamType {
+    pub kind: ParamKind,
+    pub unit: String,
+    pub min: f64,
+    pub max: f64,
+    pub decimals: u8,
+    pub off_at: Option<Edge>,
+    pub options: Vec<String>,
+}
+
+impl Default for ParamType {
+    fn default() -> Self {
+        ParamType { kind: ParamKind::Numeric, unit: String::new(),
+            min: 0.0, max: 100.0, decimals: 0, off_at: None, options: Vec::new() }
     }
 }
 
-/// A single parameter definition: a display name, its kind, and (for enums) the
-/// option labels. An empty `name` marks a position that exists on the device
-/// but isn't surfaced in the UI yet.
-#[derive(Clone, Debug, Default)]
+impl ParamType {
+    fn numeric(unit: &str, min: f64, max: f64, decimals: u8) -> Self {
+        ParamType { kind: ParamKind::Numeric, unit: unit.to_string(),
+            min, max, decimals, off_at: None, options: Vec::new() }
+    }
+}
+
+/// Built-in reusable param types, keyed by the name used in `kind = "..."`.
+/// Ranges tagged `estimate` are first-pass guesses to be refined against the
+/// device; any entry can be overridden by the `[types]` table or inline on a
+/// param in `module_params.toml`.
+pub fn builtin_types() -> HashMap<String, ParamType> {
+    let mut m = HashMap::new();
+    let mut t = |name: &str, ty: ParamType| { m.insert(name.to_string(), ty); };
+    t("percent",   ParamType::numeric("%", 0.0, 100.0, 0));
+    t("percent1",  ParamType::numeric("", 0.0, 10.0, 1));        // "knob to 10" scale, e.g. 8.8
+    t("mix",       ParamType::numeric("%", 0.0, 100.0, 0));
+    t("db",        ParamType::numeric("dB", -60.0, 12.0, 1));    // estimate
+    t("level",     ParamType::numeric("dB", -60.0, 12.0, 1));    // estimate
+    t("hz",        ParamType::numeric("Hz", 20.0, 20000.0, 0));  // estimate
+    t("freq",      ParamType::numeric("Hz", 20.0, 20000.0, 0));  // estimate
+    t("ms",        ParamType::numeric("ms", 0.0, 1000.0, 0));    // estimate
+    t("semitones", ParamType::numeric("st", -24.0, 24.0, 0));    // estimate
+    t("cents",     ParamType::numeric("¢", -50.0, 50.0, 1));
+    t("pan",       ParamType::numeric("", -100.0, 100.0, 0));    // Left/Center/Right labels: TODO
+    t("int",       ParamType::numeric("", 0.0, 10.0, 0));        // estimate
+    // Cut filters: one end reads "Off". Ranges are estimates.
+    t("lowcut",    ParamType { off_at: Some(Edge::Min), ..ParamType::numeric("Hz", 20.0, 500.0, 0) });
+    t("highcut",   ParamType { off_at: Some(Edge::Max), ..ParamType::numeric("Hz", 500.0, 20000.0, 0) });
+    t("enum",      ParamType { kind: ParamKind::Enum, ..Default::default() });
+    t("bool",      ParamType { kind: ParamKind::Bool, ..Default::default() });
+    t("unknown",   ParamType::default());
+    m
+}
+
+/// A single parameter definition: a display name plus its resolved type
+/// (widget + unit/range). An empty `name` marks a position that exists on the
+/// device but isn't surfaced in the UI yet.
+#[derive(Clone, Debug)]
 pub struct ParamDef {
     pub name: String,
     pub kind: ParamKind,
+    pub unit: String,
+    pub min: f64,
+    pub max: f64,
+    pub decimals: u8,
+    pub off_at: Option<Edge>,
     pub options: Vec<String>,
+}
+
+impl Default for ParamDef {
+    fn default() -> Self {
+        ParamDef::from_type(String::new(), &ParamType::default())
+    }
+}
+
+impl ParamDef {
+    /// Build a param from a resolved [`ParamType`] and a display name.
+    pub fn from_type(name: String, t: &ParamType) -> Self {
+        ParamDef { name, kind: t.kind, unit: t.unit.clone(), min: t.min, max: t.max,
+            decimals: t.decimals, off_at: t.off_at, options: t.options.clone() }
+    }
 }
 
 /// Ordered parameter spec for a single FX model. The device exposes params
