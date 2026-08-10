@@ -20,10 +20,11 @@ pub enum ParamKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge { Min, Max }
 
-/// A reusable parameter type: the widget plus its display unit/range. Defined
-/// once — as a built-in (see [`builtin_types`]) or in the `[types]` table of
-/// `module_params.toml` — and referenced by name from a param's `kind`, so
-/// common shapes (cents, pan, a Low Cut filter) aren't re-specified per model.
+/// A reusable parameter type: the widget plus its display unit/range.
+///
+/// Only the legacy builder tables in `config.rs` still use these; per-model
+/// params now come from Line 6's own data via [`crate::models_db`], which
+/// builds [`ParamDef`]s directly.
 #[derive(Clone, Debug)]
 pub struct ParamType {
     pub kind: ParamKind,
@@ -49,10 +50,9 @@ impl ParamType {
     }
 }
 
-/// Built-in reusable param types, keyed by the name used in `kind = "..."`.
-/// Ranges tagged `estimate` are first-pass guesses to be refined against the
-/// device; any entry can be overridden by the `[types]` table or inline on a
-/// param in `module_params.toml`.
+/// Built-in reusable param types. Ranges tagged `estimate` are first-pass
+/// guesses; they only apply to models still served by the legacy builder
+/// fallback, since [`crate::models_db`] supplies real per-param ranges.
 pub fn builtin_types() -> HashMap<String, ParamType> {
     let mut m = HashMap::new();
     let mut t = |name: &str, ty: ParamType| { m.insert(name.to_string(), ty); };
@@ -80,13 +80,24 @@ pub fn builtin_types() -> HashMap<String, ParamType> {
 /// A single parameter definition: a display name plus its resolved type
 /// (widget + unit/range). An empty `name` marks a position that exists on the
 /// device but isn't surfaced in the UI yet.
+///
+/// There are **two ranges** here and they are not interchangeable. `dsp_min`
+/// and `dsp_max` bound the value that travels on the USB wire; `min` and `max`
+/// bound what the user sees. For a percent param those are `0..1` and `0..100`;
+/// for a dB param they are the same numbers. Read `dsp_*` when building a write
+/// and `min`/`max` when driving a widget — see `models_db` for the mapping.
 #[derive(Clone, Debug)]
 pub struct ParamDef {
     pub name: String,
     pub kind: ParamKind,
     pub unit: String,
+    /// Display range, in `unit`s.
     pub min: f64,
     pub max: f64,
+    /// Wire range, in DSP units. For an [`ParamKind::Enum`], the wire value is
+    /// an index offset by `dsp_min`: `options[value - dsp_min]`.
+    pub dsp_min: f64,
+    pub dsp_max: f64,
     pub decimals: u8,
     pub off_at: Option<Edge>,
     pub options: Vec<String>,
@@ -102,13 +113,14 @@ impl ParamDef {
     /// Build a param from a resolved [`ParamType`] and a display name.
     pub fn from_type(name: String, t: &ParamType) -> Self {
         ParamDef { name, kind: t.kind, unit: t.unit.clone(), min: t.min, max: t.max,
+            dsp_min: t.min, dsp_max: t.max,
             decimals: t.decimals, off_at: t.off_at, options: t.options.clone() }
     }
 }
 
 /// Ordered parameter spec for a single FX model. The device exposes params
-/// positionally (no names over USB), so names/kinds/order are hand-mapped per
-/// model (in `module_params.toml`). The Nth entry maps to the Nth device value.
+/// positionally (no names over USB), so the Nth entry maps to the Nth value the
+/// device sends. Built from Line 6's model files by [`crate::models_db`].
 #[derive(Clone, Debug, Default)]
 pub struct ParamSpec {
     params: Vec<ParamDef>,
@@ -137,6 +149,9 @@ impl ParamSpec {
     }
     pub fn param(&self, idx: usize) -> Option<&ParamDef> {
         self.params.get(idx)
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, ParamDef> {
+        self.params.iter()
     }
     pub fn len(&self) -> usize { self.params.len() }
     pub fn is_empty(&self) -> bool { self.params.is_empty() }

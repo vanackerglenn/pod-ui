@@ -20,7 +20,7 @@ log = "*" # defined in pod-core
 tokio = "*" # defined in pod-core
 anyhow = "*" # defined in pod-code
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+serde_json = "1"
 
 pod-core = { path = "../core" }
 pod-usb = { path = "../usb" }

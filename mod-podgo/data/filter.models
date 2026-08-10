@@ -1,0 +1,1393 @@
+[
+ {
+  "symbolicID" : "HD2_FilterMutantFilterStereo",
+  "name" : "Mutant Filter",
+  "category" : 6,
+  "load" : 3.50,
+  "params" : [
+   {
+    "default" : 1,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Mode",
+    "symbolicID" : "Mode",
+    "valueType" : 0
+   },
+   {
+    "default" : 0.80,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Peak",
+    "symbolicID" : "Peak",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.150,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Gain",
+    "symbolicID" : "Gain",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "filter_range",
+    "max" : true,
+    "min" : false,
+    "name" : "Range",
+    "symbolicID" : "Range",
+    "valueType" : 2
+   },
+   {
+    "assign" : 1,
+    "default" : true,
+    "displayType" : "down_up",
+    "max" : true,
+    "min" : false,
+    "name" : "Drive",
+    "symbolicID" : "Drive",
+    "valueType" : 2
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FilterMysterFilterStereo",
+  "name" : "Mystery Filter",
+  "category" : 6,
+  "load" : 3.50,
+  "params" : [
+   {
+    "assign" : 2,
+    "default" : 0.520,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Sensitivity",
+    "symbolicID" : "Sensitivity",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.80,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Frequency",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.80,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Resonance",
+    "symbolicID" : "Resonance",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.130,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Attack",
+    "symbolicID" : "Attack",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.970,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Release",
+    "symbolicID" : "Release",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : -1.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FilterAutoFilterStereo",
+  "name" : "Auto Filter",
+  "category" : 6,
+  "load" : 3.50,
+  "params" : [
+   {
+    "default" : 1,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Mode",
+    "symbolicID" : "Mode",
+    "valueType" : 0
+   },
+   {
+    "default" : 18.0,
+    "displayType" : "volume",
+    "max" : 36.0,
+    "min" : 0.0,
+    "name" : "Filter Gain",
+    "symbolicID" : "FilterGain",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 7.50,
+    "displayType" : "tenths_no_units",
+    "max" : 10.0,
+    "min" : 1.0,
+    "name" : "Filter Q",
+    "symbolicID" : "FilterQ",
+    "valueType" : 1
+   },
+   {
+    "assign" : 2,
+    "default" : 0.40,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Sensitivity",
+    "symbolicID" : "Sens",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.020,
+    "displayType" : "time_ms",
+    "max" : 2.0,
+    "min" : 0.0050,
+    "name" : "Attack",
+    "symbolicID" : "Attack",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.350,
+    "displayType" : "time_ms",
+    "max" : 3.0,
+    "min" : 0.0050,
+    "name" : "Decay",
+    "symbolicID" : "Decay",
+    "valueType" : 1
+   },
+   {
+    "default" : 50.0,
+    "displayType" : "frequency",
+    "max" : 1000.0,
+    "min" : 20.0,
+    "name" : "Frequency",
+    "symbolicID" : "Frequency",
+    "valueType" : 1
+   },
+   {
+    "default" : 3500.0,
+    "displayType" : "frequency",
+    "max" : 10000.0,
+    "min" : 0.0,
+    "name" : "Freq Depth",
+    "symbolicID" : "FreqDepth",
+    "valueType" : 1
+   },
+   {
+    "assign" : 1,
+    "default" : true,
+    "displayType" : "down_up",
+    "max" : true,
+    "min" : false,
+    "name" : "Direction",
+    "symbolicID" : "Direction",
+    "valueType" : 2
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4CometTrails",
+  "name" : "Comet Trails",
+  "category" : 6,
+  "load" : 7.50,
+  "params" : [
+   {
+    "default" : 3.330,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.50,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.50,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Gain",
+    "symbolicID" : "Gain",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4ObiWah",
+  "name" : "Obi Wah",
+  "category" : 6,
+  "load" : 5.00,
+  "params" : [
+   {
+    "default" : 6.330,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.470,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.720,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 1,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Type",
+    "symbolicID" : "Type",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4QFilter",
+  "name" : "Q Filter",
+  "category" : 6,
+  "load" : 4.50,
+  "params" : [
+   {
+    "assign" : 3,
+    "default" : 0.270,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.750,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.630,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Gain",
+    "symbolicID" : "Gain",
+    "valueType" : 1
+   },
+   {
+    "default" : 1,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Type",
+    "symbolicID" : "Type",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4Seeker",
+  "name" : "Seeker",
+  "category" : 6,
+  "load" : 5.50,
+  "params" : [
+   {
+    "default" : 5.80,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.390,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 8,
+    "displayType" : "integer_steps",
+    "max" : 9,
+    "min" : 2,
+    "name" : "Steps",
+    "symbolicID" : "Steps",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4SlowFilter",
+  "name" : "Slow Filter",
+  "category" : 6,
+  "load" : 5.50,
+  "params" : [
+   {
+    "assign" : 3,
+    "default" : 0.090,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.670,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.70,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 1,
+    "default" : false,
+    "displayType" : "up_down",
+    "max" : true,
+    "min" : false,
+    "name" : "Mode",
+    "symbolicID" : "Mode",
+    "valueType" : 2
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4SpinCycle",
+  "name" : "Spin Cycle",
+  "category" : 6,
+  "load" : 6.00,
+  "params" : [
+   {
+    "default" : 1.210,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.860,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.250,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "assign" : 2,
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Vol Sens",
+    "symbolicID" : "Vol Sens",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4Throbber",
+  "name" : "Throbber",
+  "category" : 6,
+  "load" : 5.50,
+  "params" : [
+   {
+    "default" : 4.80,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "assign" : 3,
+    "default" : 0.130,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.470,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : 0,
+    "displayType" : "wave_shape_throbber",
+    "max" : 3,
+    "min" : 0,
+    "name" : "Wave",
+    "symbolicID" : "Wave",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4TronDown",
+  "name" : "Tron Down",
+  "category" : 6,
+  "load" : 5.50,
+  "params" : [
+   {
+    "assign" : 3,
+    "default" : 0.690,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "filter_range",
+    "max" : true,
+    "min" : false,
+    "name" : "Range",
+    "symbolicID" : "Range",
+    "valueType" : 2
+   },
+   {
+    "default" : 0,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Type",
+    "symbolicID" : "Type",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4TronUp",
+  "name" : "Tron Up",
+  "category" : 6,
+  "load" : 5.50,
+  "params" : [
+   {
+    "assign" : 3,
+    "default" : 0.50,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Frequency",
+    "symbolicID" : "Freq",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Q",
+    "symbolicID" : "Q",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "filter_range",
+    "max" : true,
+    "min" : false,
+    "name" : "Range",
+    "symbolicID" : "Range",
+    "valueType" : 2
+   },
+   {
+    "default" : 1,
+    "displayType" : "mode_pass",
+    "max" : 2,
+    "min" : 0,
+    "name" : "Type",
+    "symbolicID" : "Type",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4VoiceBox",
+  "name" : "Voice Box",
+  "category" : 6,
+  "load" : 3.50,
+  "params" : [
+   {
+    "default" : 2.950,
+    "displayType" : "frequency",
+    "max" : 15.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "default" : 0,
+    "displayType" : "vowel_start",
+    "max" : 4,
+    "min" : 0,
+    "name" : "Start",
+    "symbolicID" : "Start",
+    "valueType" : 0
+   },
+   {
+    "default" : 2,
+    "displayType" : "vowel_end",
+    "max" : 4,
+    "min" : 0,
+    "name" : "End",
+    "symbolicID" : "End",
+    "valueType" : 0
+   },
+   {
+    "default" : 0,
+    "displayType" : "auto",
+    "max" : 3,
+    "min" : 0,
+    "name" : "Auto",
+    "symbolicID" : "Auto",
+    "valueType" : 0
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FM4VTron",
+  "name" : "V Tron",
+  "category" : 6,
+  "load" : 3.50,
+  "params" : [
+   {
+    "default" : 0.470,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Speed",
+    "symbolicID" : "Speed",
+    "valueType" : 1
+   },
+   {
+    "default" : 0,
+    "displayType" : "vowel_start",
+    "max" : 4,
+    "min" : 0,
+    "name" : "Start",
+    "symbolicID" : "Start",
+    "valueType" : 0
+   },
+   {
+    "default" : 4,
+    "displayType" : "vowel_end",
+    "max" : 4,
+    "min" : 0,
+    "name" : "End",
+    "symbolicID" : "End",
+    "valueType" : 0
+   },
+   {
+    "default" : true,
+    "displayType" : "up_updown",
+    "max" : true,
+    "min" : false,
+    "name" : "Mode",
+    "symbolicID" : "Mode",
+    "valueType" : 2
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FilterAshevillePattrnStereo",
+  "name" : "Asheville Pattrn",
+  "category" : 6,
+  "load" : 16.25,
+  "params" : [
+   {
+    "default" : 0.50,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Rate",
+    "symbolicID" : "Rate",
+    "valueType" : 1
+   },
+   {
+    "default" : 4,
+    "displayType" : "ashville_pattern",
+    "max" : 20,
+    "min" : 0,
+    "name" : "Pattern",
+    "symbolicID" : "Pattern",
+    "valueType" : 0
+   },
+   {
+    "default" : 0.50,
+    "displayType" : "generic_knob",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Envelope",
+    "symbolicID" : "Envelope",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "displayType" : "ashville_voice",
+    "max" : true,
+    "min" : false,
+    "name" : "Voice",
+    "symbolicID" : "Voice",
+    "valueType" : 2
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Output",
+    "symbolicID" : "Output",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.50,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Drive",
+    "symbolicID" : "Drive",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "ashville_direction",
+    "max" : true,
+    "min" : false,
+    "name" : "Direction",
+    "symbolicID" : "Direction",
+    "valueType" : 2
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "percent_zero_off",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "LFO",
+    "symbolicID" : "LFO",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Spread",
+    "symbolicID" : "Spread",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level1",
+    "symbolicID" : "Level1",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level2",
+    "symbolicID" : "Level2",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level3",
+    "symbolicID" : "Level3",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level4",
+    "symbolicID" : "Level4",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level5",
+    "symbolicID" : "Level5",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level6",
+    "symbolicID" : "Level6",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level7",
+    "symbolicID" : "Level7",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Level8",
+    "symbolicID" : "Level8",
+    "valueType" : 1
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync",
+    "symbolicID" : "SyncSelect1",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync",
+    "symbolicID" : "TempoSync1",
+    "valueType" : 2
+   },
+   {
+    "default" : 6,
+    "displayType" : "sync_note",
+    "max" : 19,
+    "min" : 1,
+    "name" : "Note Sync 2",
+    "symbolicID" : "SyncSelect2",
+    "valueType" : 0
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Tempo Sync 2",
+    "symbolicID" : "TempoSync2",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ }
+]

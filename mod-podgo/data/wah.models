@@ -1,0 +1,655 @@
+[
+ {
+  "symbolicID" : "HD2_WahChromeCustomStereo",
+  "name" : "Chrome Custom",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 300.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 1975.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahChromeStereo",
+  "name" : "Chrome",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 470.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 2415.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahColorfulStereo",
+  "name" : "Colorful",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 280.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 2101.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahConductorStereo",
+  "name" : "Conductor",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 392.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 922.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahFasselStereo",
+  "name" : "Fassel",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 455.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 2155.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahTeardrop310Stereo",
+  "name" : "Teardrop 310",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahThroatyStereo",
+  "name" : "Throaty",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 310.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 1735.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahUKWah846Stereo",
+  "name" : "UK Wah 846",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 4.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahVettaWahStereo",
+  "name" : "Vetta Wah",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 300.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 2300.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_WahWeeperStereo",
+  "name" : "Weeper",
+  "category" : 11,
+  "load" : 3.36,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : 435.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Fc Low",
+    "symbolicID" : "FcLow",
+    "valueType" : 1
+   },
+   {
+    "default" : 1901.0,
+    "displayType" : "frequency",
+    "max" : 5000.0,
+    "min" : 500.0,
+    "name" : "Fc High",
+    "symbolicID" : "FcHigh",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+  {
+    "symbolicID": "HD2_WahTeardropBassQStereo",
+    "name": "Teardrop Bass Q",
+    "category": 11,
+    "load": 3.0,
+    "devices": [
+      {
+        "id": 2162695,
+        "version": "0x02010100"
+      },
+      {
+        "id": 2162696,
+        "version": "0x02010100"
+      }
+    ],
+    "params": [
+      {
+        "symbolicID": "Pedal",
+        "name": "Position",
+        "valueType": 1,
+        "displayType": "percent_braced",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.0
+      },
+      {
+        "symbolicID": "Q Trim",
+        "name": "Q Trim",
+        "valueType": 1,
+        "displayType": "generic_knob",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 1.0
+      },
+      {
+        "symbolicID": "Volume Trim",
+        "name": "Volume Trim",
+        "valueType": 1,
+        "displayType": "generic_knob",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.7
+      },
+      {
+        "symbolicID": "Mix",
+        "name": "Mix",
+        "valueType": 1,
+        "displayType": "percent",
+        "min": 0.0,
+        "max": 1.0,
+        "default": 1.0
+      },
+      {
+        "symbolicID": "Level",
+        "name": "Level",
+        "valueType": 1,
+        "displayType": "volume",
+        "min": -60.0,
+        "max": 6.0,
+        "default": 0.0
+      },
+      {
+        "symbolicID": "@enabled",
+        "name": "Enabled",
+        "valueType": 2,
+        "min": false,
+        "max": true,
+        "default": true
+      },
+      {
+        "symbolicID": "@stereo",
+        "name": "Stereo",
+        "valueType": 2,
+        "min": false,
+        "max": true,
+        "default": false
+      }
+    ]
+  }
+]

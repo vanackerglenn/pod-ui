@@ -1,0 +1,1139 @@
+[
+    {
+        "symbolicID": "HD2_EQGraphic10BandStereo",
+        "name": "10 Band Graphic",
+        "category": 14,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "31.25Hz",
+                "symbolicID": "31p25Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "62.5Hz",
+                "symbolicID": "62p5Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "125Hz",
+                "symbolicID": "125Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "250Hz",
+                "symbolicID": "250Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "500Hz",
+                "symbolicID": "500Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "1kHz",
+                "symbolicID": "1kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "2kHz",
+                "symbolicID": "2kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "4kHz",
+                "symbolicID": "4kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "8kHz",
+                "symbolicID": "8kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "16kHz",
+                "symbolicID": "16kHz",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQLowCutHighCutStereo",
+        "name": "Low and High Cut",
+        "category": 14,
+        "load": 2.25,
+        "params": [
+            {
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 1000.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 1000.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQParametricStereo",
+        "name": "Parametric",
+        "category": 14,
+        "load": 2.50,
+        "params": [
+            {
+                "assign": 3,
+                "default": 110.0,
+                "displayType": "frequency",
+                "max": 495.0,
+                "min": 20.0,
+                "name": "Low Freq",
+                "symbolicID": "LowFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.70,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "Low Q",
+                "symbolicID": "LowQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 2000.0,
+                "displayType": "frequency",
+                "max": 8000.0,
+                "min": 125.0,
+                "name": "Mid Freq",
+                "symbolicID": "MidFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.70,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "Mid Q",
+                "symbolicID": "MidQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Mid Gain",
+                "symbolicID": "MidGain",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 8000.0,
+                "displayType": "frequency",
+                "max": 18000.0,
+                "min": 500.0,
+                "name": "High Freq",
+                "symbolicID": "HighFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.70,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "High Q",
+                "symbolicID": "HighQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 1000.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 1000.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQSimple3BandStereo",
+        "name": "Simple EQ",
+        "category": 14,
+        "load": 2.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 600.0,
+                "displayType": "frequency",
+                "max": 4000.0,
+                "min": 125.0,
+                "name": "Mid Freq",
+                "symbolicID": "MidFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Mid Gain",
+                "symbolicID": "MidGain",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CaliQStereo",
+        "name": "Cali Q Graphic",
+        "category": 14,
+        "load": 2.50,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.80,
+                "name": "80Hz",
+                "symbolicID": "80Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.30,
+                "name": "240Hz",
+                "symbolicID": "240Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.30,
+                "name": "750Hz",
+                "symbolicID": "750Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 9.60,
+                "min": -9.60,
+                "name": "2200Hz",
+                "symbolicID": "2200Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 9.60,
+                "min": -9.60,
+                "name": "6600Hz",
+                "symbolicID": "6600Hz",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQLowShelfHighShelfStereo",
+        "name": "Low/High Shelf",
+        "category": 14,
+        "load": 2.25,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 300.0,
+                "displayType": "frequency",
+                "max": 2000.0,
+                "min": 20.0,
+                "name": "Low Freq",
+                "symbolicID": "LowFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 3000.0,
+                "displayType": "frequency",
+                "max": 15000.0,
+                "min": 400.0,
+                "name": "High Freq",
+                "symbolicID": "HighFreq",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQSimpleTiltStereo",
+        "name": "Simple Tilt",
+        "category": 14,
+        "load": 2.00,
+        "params": [
+            {
+                "default": 0.50,
+                "displayType": "tilt",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Tilt",
+                "symbolicID": "Tilt",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 1000.0,
+                "displayType": "frequency",
+                "max": 5000.0,
+                "min": 100.0,
+                "name": "Center Freq",
+                "symbolicID": "CenterFreq",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+  {
+    "symbolicID" : "L6SPB_AcousGtrSimStereo",
+    "name" : "Acoustic Sim",
+    "load": 15.5, 
+    "category" : 14,
+        "devices": [
+            { "id": 2162695, "version": "0x01130000" },
+            { "id": 2162696, "version": "0x01130000" }
+        ],
+    "params" : [
+      {
+        "symbolicID" : "Mode",
+        "name" : "Mode",
+        "valueType" : 0,
+        "displayType" : "poly_acoustic_sim",
+        "min" : 0,
+        "max" : 3,
+        "default" : 0
+      },
+      {
+        "symbolicID" : "Body",
+        "name" : "Body",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.5
+      },
+      {
+        "symbolicID" : "Top",
+        "name" : "Top",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.5
+      },
+      {
+        "symbolicID" : "Shimmer",
+        "name" : "Shimmer",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.2
+      },
+      {
+        "symbolicID" : "Level",
+        "name" : "Level",
+        "valueType" : 1,
+        "displayType" : "volume",
+        "min" : -60.0,
+        "max" : 6.0,
+        "default" : 0.0
+      },
+      {
+        "symbolicID" : "@enabled",
+        "name" : "Enabled",
+        "valueType" : 2,
+        "min" : false,
+        "max" : true,
+        "default" : true
+      },
+      {
+        "symbolicID" : "@stereo",
+        "name" : "Stereo",
+        "valueType" : 2,
+        "min" : false,
+        "max" : true,
+        "default" : false
+      }
+    ]
+  },
+    {
+        "symbolicID": "HD2_EQ_STATIC_Graphic10BandStereo",
+        "name": "10 Band Graphic",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "31.25Hz",
+                "symbolicID": "31p25Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "62.5Hz",
+                "symbolicID": "62p5Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "125Hz",
+                "symbolicID": "125Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "250Hz",
+                "symbolicID": "250Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "500Hz",
+                "symbolicID": "500Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "1kHz",
+                "symbolicID": "1kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "2kHz",
+                "symbolicID": "2kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "4kHz",
+                "symbolicID": "4kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "8kHz",
+                "symbolicID": "8kHz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "16kHz",
+                "symbolicID": "16kHz",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_LowCutHighCutStereo",
+        "name": "Low and High Cut",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 1000.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 1000.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_ParametricStereo",
+        "name": "Parametric",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "assign": 3,
+                "default": 110.0,
+                "displayType": "frequency",
+                "max": 495.0,
+                "min": 20.0,
+                "name": "Low Freq",
+                "symbolicID": "LowFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.7070,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "Low Q",
+                "symbolicID": "LowQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 2000.0,
+                "displayType": "frequency",
+                "max": 8000.0,
+                "min": 125.0,
+                "name": "Mid Freq",
+                "symbolicID": "MidFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.7070,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "Mid Q",
+                "symbolicID": "MidQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Mid Gain",
+                "symbolicID": "MidGain",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 8000.0,
+                "displayType": "frequency",
+                "max": 18000.0,
+                "min": 500.0,
+                "name": "High Freq",
+                "symbolicID": "HighFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.7070,
+                "displayType": "tenths_no_units",
+                "max": 10.0,
+                "min": 0.10,
+                "name": "High Q",
+                "symbolicID": "HighQ",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 1000.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 1000.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_Simple3BandStereo",
+        "name": "Simple EQ",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 600.0,
+                "displayType": "frequency",
+                "max": 4000.0,
+                "min": 125.0,
+                "name": "Mid Freq",
+                "symbolicID": "MidFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Mid Gain",
+                "symbolicID": "MidGain",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_CaliQStereo",
+        "name": "Cali Q Graphic",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.80,
+                "name": "80Hz",
+                "symbolicID": "80Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.30,
+                "name": "240Hz",
+                "symbolicID": "240Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 13.20,
+                "min": -13.30,
+                "name": "750Hz",
+                "symbolicID": "750Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 9.60,
+                "min": -9.60,
+                "name": "2200Hz",
+                "symbolicID": "2200Hz",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 9.60,
+                "min": -9.60,
+                "name": "6600Hz",
+                "symbolicID": "6600Hz",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 15.0,
+                "min": -15.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_LowShelfHighShelfStereo",
+        "name": "Low/High Shelf",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "Low Gain",
+                "symbolicID": "LowGain",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 300.0,
+                "displayType": "frequency",
+                "max": 2000.0,
+                "min": 20.0,
+                "name": "Low Freq",
+                "symbolicID": "LowFreq",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -12.0,
+                "name": "High Gain",
+                "symbolicID": "HighGain",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 3000.0,
+                "displayType": "frequency",
+                "max": 15000.0,
+                "min": 400.0,
+                "name": "High Freq",
+                "symbolicID": "HighFreq",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_EQ_STATIC_SimpleTiltStereo",
+        "name": "Simple Tilt",
+        "category": 18,
+        "load": 3.00,
+        "params": [
+            {
+                "default": 0.50,
+                "displayType": "tilt",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Tilt",
+                "symbolicID": "Tilt",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 1000.0,
+                "displayType": "frequency",
+                "max": 5000.0,
+                "min": 100.0,
+                "name": "Center Freq",
+                "symbolicID": "CenterFreq",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    }
+]
+
+

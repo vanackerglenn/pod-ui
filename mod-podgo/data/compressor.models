@@ -1,0 +1,966 @@
+[
+    {
+        "symbolicID": "HD2_CompressorDeluxeCompMono",
+        "name": "Deluxe Comp",
+        "category": 4,
+        "load": 1.75,
+        "params": [
+            {
+                "assign": 1,
+                "default": -37.10,
+                "displayType": "volume",
+                "max": 0.0,
+                "min": -60.0,
+                "name": "Threshold",
+                "symbolicID": "Threshold",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "comp_ratio",
+                "max": 5,
+                "min": 0,
+                "name": "Ratio",
+                "symbolicID": "Ratio",
+                "valueType": 0
+            },
+            {
+                "assign": 3,
+                "default": 0.0380,
+                "displayType": "time_ms",
+                "max": 0.20,
+                "min": 0.00010,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 0.20,
+                "displayType": "time_ms",
+                "max": 2.50,
+                "min": 0.050,
+                "name": "Release",
+                "symbolicID": "Release",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 7.0,
+                "displayType": "volume",
+                "max": 36.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": 6.0,
+                "displayType": "volume",
+                "max": 20.0,
+                "min": 0.0,
+                "name": "Knee",
+                "symbolicID": "Knee",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorLAStudioCompMono",
+        "name": "LA Studio Comp",
+        "category": 4,
+        "load": 6.25,
+        "params": [
+            {
+                "default": 0.780,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Peak Reduction",
+                "symbolicID": "PeakReduction",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.620,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Gain",
+                "symbolicID": "Gain",
+                "valueType": 1
+            },
+            {
+                "default": false,
+                "displayType": "comp_mode",
+                "max": true,
+                "min": false,
+                "name": "Type",
+                "symbolicID": "Type",
+                "valueType": 2
+            },
+            {
+                "default": 0.090,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Emphasis",
+                "symbolicID": "Emphasis",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -120.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorRedSqueezeMono",
+        "name": "Red Squeeze",
+        "category": 4,
+        "load": 8.5,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.440,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sensitivity",
+                "symbolicID": "Sensitivity",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 5.40,
+                "displayType": "volume",
+                "max": 12.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorAutoSwellMono",
+        "name": "Autoswell",
+        "category": 4,
+        "load": 2.25,
+        "params": [
+            {
+                "assign": 1,
+                "default": -70.0,
+                "displayType": "volume",
+                "max": 0.0,
+                "min": -100.0,
+                "name": "Threshold",
+                "symbolicID": "Threshold",
+                "valueType": 1
+            },
+            {
+                "default": 5.0,
+                "displayType": "volume",
+                "max": 40.0,
+                "min": -40.0,
+                "name": "Rel Offset",
+                "symbolicID": "Rel Offset",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.40,
+                "displayType": "time_ms",
+                "max": 5.0,
+                "min": 0.10,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 0.0150,
+                "displayType": "time_ms",
+                "max": 5.0,
+                "min": 0.0010,
+                "name": "Decay",
+                "symbolicID": "Decay",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "displayType": "volume_curve",
+                "max": true,
+                "min": false,
+                "name": "Taper",
+                "symbolicID": "Taper",
+                "valueType": 2
+            },
+            {
+                "assign": 4,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 36.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Compressor3BandCompMono",
+        "name": "3-Band Comp",
+        "category": 4,
+        "load": 5.00,
+        "params": [
+            {
+                "default": 2,
+                "displayType": "comp_ratio_3band",
+                "max": 6,
+                "min": 0,
+                "name": "Ratio",
+                "symbolicID": "Ratio",
+                "valueType": 0
+            },
+            {
+                "assign": 3,
+                "default": 0.0350,
+                "displayType": "time_ms",
+                "max": 0.20,
+                "min": 0.00010,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 0.20,
+                "displayType": "time_ms",
+                "max": 2.50,
+                "min": 0.050,
+                "name": "Release",
+                "symbolicID": "Release",
+                "valueType": 1
+            },
+            {
+                "default": 400.0,
+                "displayType": "frequency",
+                "max": 1000.0,
+                "min": 20.0,
+                "name": "Lo X Freq",
+                "symbolicID": "Lo X Freq",
+                "valueType": 1
+            },
+            {
+                "default": 3000.0,
+                "displayType": "frequency",
+                "max": 20000.0,
+                "min": 1000.0,
+                "name": "Hi X Freq",
+                "symbolicID": "Hi X Freq",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 2.0,
+                "displayType": "volume",
+                "max": 36.0,
+                "min": -120.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": -40.0,
+                "displayType": "volume",
+                "max": 0.0,
+                "min": -80.0,
+                "name": "Lo Thresh",
+                "symbolicID": "Lo Thresh",
+                "valueType": 1
+            },
+            {
+                "default": 3.50,
+                "displayType": "volume",
+                "max": 30.0,
+                "min": -60.0,
+                "name": "Lo Gain",
+                "symbolicID": "Lo Gain",
+                "valueType": 1
+            },
+            {
+                "default": -35.0,
+                "displayType": "volume",
+                "max": 0.0,
+                "min": -80.0,
+                "name": "Mid Thresh",
+                "symbolicID": "Mid Thresh",
+                "valueType": 1
+            },
+            {
+                "default": 4.0,
+                "displayType": "volume",
+                "max": 30.0,
+                "min": -60.0,
+                "name": "Mid Gain",
+                "symbolicID": "Mid Gain",
+                "valueType": 1
+            },
+            {
+                "default": -50.0,
+                "displayType": "volume",
+                "max": 0.0,
+                "min": -80.0,
+                "name": "Hi Thresh",
+                "symbolicID": "Hi Thresh",
+                "valueType": 1
+            },
+            {
+                "default": -2.0,
+                "displayType": "volume",
+                "max": 30.0,
+                "min": -60.0,
+                "name": "Hi Gain",
+                "symbolicID": "Hi Gain",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4BlueComp",
+        "name": "Blue Comp",
+        "category": 4,
+        "load": 3.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sustain",
+                "symbolicID": "Sustain",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.920,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4BlueCompTreb",
+        "name": "Blue Comp Treb",
+        "category": 4,
+        "load": 4.00,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sustain",
+                "symbolicID": "Sustain",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.610,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4BoostComp",
+        "name": "Boost Comp",
+        "category": 4,
+        "load": 6.50,
+        "params": [
+            {
+                "default": 0.70,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Drive",
+                "symbolicID": "Drive",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Bass",
+                "symbolicID": "Bass",
+                "valueType": 1
+            },
+            {
+                "assign": 5,
+                "default": 0.310,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Compression",
+                "symbolicID": "Comp",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Treble",
+                "symbolicID": "Treble",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.580,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Output",
+                "symbolicID": "Output",
+                "valueType": 1
+            },
+            {
+                "assign": 4,
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4RedComp",
+        "name": "Red Comp",
+        "category": 4,
+        "load": 3.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sustain",
+                "symbolicID": "Sustain",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.710,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4TubeComp",
+        "name": "Tube Comp",
+        "category": 4,
+        "load": 3.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Threshold",
+                "symbolicID": "Thresh",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.190,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4VettaComp",
+        "name": "Vetta Comp",
+        "category": 4,
+        "load": 3.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sensitivity",
+                "symbolicID": "Sens",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.730,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4VettaJuice",
+        "name": "Vetta Juice",
+        "category": 4,
+        "load": 3.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Amount",
+                "symbolicID": "Amount",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.50,
+                "displayType": "raw_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorKinkyCompMono",
+        "name": "Kinky Comp",
+        "category": 4,
+        "load": 6.5,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Sensitivity",
+                "symbolicID": "Sensitivity",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Release",
+                "symbolicID": "Release",
+                "valueType": 1
+            },
+            {
+                "assign": 6,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorRochesterCompMono",
+        "name": "Rochester Comp",
+        "category": 4,
+        "load": 5.5,
+        "params": [
+            {
+                "symbolicID": "Gain",
+                "name": "Gain",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -15.0,
+                "max": 15.0,
+                "default": 3.0
+            },
+            {
+                "symbolicID": "Threshold",
+                "name": "Threshold",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -40.0,
+                "max": 22.0,
+                "default": -24.0,
+                "assign": 1
+            },
+            {
+                "symbolicID": "Ratio",
+                "name": "Ratio",
+                "valueType": 1,
+                "displayType": "rochester_ratio",
+                "min": 1.0,
+                "max": 40.0,
+                "default": 10.0
+            },
+            {
+                "symbolicID": "Attack",
+                "name": "Attack",
+                "valueType": 1,
+                "displayType": "time_ms",
+                "min": 0.0001,
+                "max": 0.02,
+                "default": 0.01,
+                "assign": 3
+            },
+            {
+                "symbolicID": "Release",
+                "name": "Release",
+                "valueType": 1,
+                "displayType": "time_ms",
+                "min": 0.1,
+                "max": 3.0,
+                "default": 0.1
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -20.0,
+                "max": 20.0,
+                "default": 10.0
+            },
+            {
+                "symbolicID": "Knee",
+                "name": "Knee",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": 0.0,
+                "max": 20.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 1.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_GateHorizonGateMono",
+        "name": "Horizon Gate",
+        "category": 4,
+        "load": 4.0,
+        "devices": [
+            { "id": 2162695, "version": "0x01130000" },
+            { "id": 2162696, "version": "0x01130000" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Mode",
+                "name": "Mode",
+                "valueType": 0,
+                "displayType": "horizon_gatemode",
+                "min": 0,
+                "max": 1,
+                "default": 1
+            },
+            {
+                "symbolicID": "Sensitivity",
+                "name": "Sensitivity",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.846
+            },
+            {
+                "symbolicID": "Gate Range",
+                "name": "Gate Range",
+                "valueType": 2,
+                "displayType": "horizon_gaterange",
+                "min": false,
+                "max": true,
+                "default": false
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_CompressorOptoCompMono",
+        "name": "Ampeg Opto Comp",
+        "category": 4,
+        "load": 6.75,
+        "meterChannels": 1,
+        "meterMin": -42.0,
+        "meterMax": 0.0,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Compression",
+                "name": "Compression",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.5
+            },
+            {
+                "symbolicID": "Release",
+                "name": "Release",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.25
+            },
+            {
+                "symbolicID": "Blend",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 1.0
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.65
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            },
+            {
+                "symbolicID": "@stereo",
+                "name": "Stereo",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": false
+            }
+        ]
+    }
+]

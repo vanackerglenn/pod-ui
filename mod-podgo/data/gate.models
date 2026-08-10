@@ -1,0 +1,112 @@
+[
+ {
+  "symbolicID" : "HD2_GateHardGateMono",
+  "name" : "Hard Gate",
+  "category" : 4,
+  "load" : 1.50,
+  "params" : [
+   {
+    "assign" : 1,
+    "default" : -50.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -96.0,
+    "name" : "Open Threshold",
+    "symbolicID" : "OpenThreshold",
+    "valueType" : 1
+   },
+   {
+    "default" : -60.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -96.0,
+    "name" : "Close Threshold",
+    "symbolicID" : "CloseThreshold",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.010,
+    "displayType" : "time_ms",
+    "max" : 0.80,
+    "min" : 0.010,
+    "name" : "Hold Time",
+    "symbolicID" : "HoldTime",
+    "valueType" : 1
+   },
+   {
+    "assign" : 2,
+    "default" : 0.010,
+    "displayType" : "time_ms",
+    "max" : 4.0,
+    "min" : 0.010,
+    "name" : "Decay",
+    "symbolicID" : "Decay",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_GateNoiseGateMono",
+  "name" : "Noise Gate",
+  "category" : 4,
+  "load" : 3.26,
+  "params" : [
+   {
+    "assign" : 1,
+    "default" : -48.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -96.0,
+    "name" : "Threshold",
+    "symbolicID" : "Threshold",
+    "valueType" : 1
+   },
+   {
+    "assign" : 2,
+    "default" : 0.50,
+    "displayType" : "time_ms",
+    "max" : 1.0,
+    "min" : 0.010,
+    "name" : "Decay",
+    "symbolicID" : "Decay",
+    "valueType" : 1
+   },
+   {
+    "assign" : 4,
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ }
+]

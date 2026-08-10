@@ -1,0 +1,1894 @@
+[
+    {
+        "symbolicID": "HD2_PitchPitchWhamMono",
+        "name": "Pitch Wham",
+        "category": 7,
+        "load": 5.25,
+        "params": [
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Pedal Position",
+                "symbolicID": "Pedal",
+                "valueType": 1
+            },
+            {
+                "default": -12,
+                "displayType": "integer_slider_signed",
+                "max": 24,
+                "min": -24,
+                "name": "Heel Pitch",
+                "symbolicID": "Heel",
+                "valueType": 0
+            },
+            {
+                "default": 12,
+                "displayType": "integer_slider_signed",
+                "max": 24,
+                "min": -24,
+                "name": "Toe Pitch",
+                "symbolicID": "Toe",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_PitchTwinHarmonyMono",
+        "name": "Twin Harmony",
+        "category": 7,
+        "load": 7.50,
+        "params": [
+            {
+                "default": 0,
+                "displayType": "key_voice",
+                "max": 11,
+                "min": 0,
+                "name": "Voice 1 Key",
+                "symbolicID": "KeyVoice1",
+                "valueType": 0
+            },
+            {
+                "default": 0,
+                "displayType": "scale_voice",
+                "max": 7,
+                "min": 0,
+                "name": "Voice 1 Scale",
+                "symbolicID": "ScaleVoice1",
+                "valueType": 0
+            },
+            {
+                "default": -3,
+                "displayType": "pitch_shift",
+                "max": 8,
+                "min": -8,
+                "name": "Voice 1 Shift",
+                "symbolicID": "IntervalVoice1",
+                "valueType": 0
+            },
+            {
+                "assign": 1,
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Voice 1 Level",
+                "symbolicID": "LevelVoice1",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": 0,
+                "displayType": "key_voice",
+                "max": 11,
+                "min": 0,
+                "name": "Voice 2 Key",
+                "symbolicID": "KeyVoice2",
+                "valueType": 0
+            },
+            {
+                "default": 0,
+                "displayType": "scale_voice",
+                "max": 7,
+                "min": 0,
+                "name": "Voice 2 Scale",
+                "symbolicID": "ScaleVoice2",
+                "valueType": 0
+            },
+            {
+                "default": 2,
+                "displayType": "pitch_shift",
+                "max": 8,
+                "min": -8,
+                "name": "Voice 2 Shift",
+                "symbolicID": "IntervalVoice2",
+                "valueType": 0
+            },
+            {
+                "assign": 3,
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Voice 2 Level",
+                "symbolicID": "LevelVoice2",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_PitchSimplePitchMono",
+        "name": "Simple Pitch",
+        "category": 7,
+        "load": 5.75,
+        "params": [
+            {
+                "default": 7,
+                "displayType": "integer_slider_signed",
+                "max": 24,
+                "min": -24,
+                "name": "Interval",
+                "symbolicID": "Interval1",
+                "valueType": 0
+            },
+            {
+                "default": 0.0,
+                "displayType": "cents",
+                "max": 50.0,
+                "min": -50.0,
+                "name": "Cents",
+                "symbolicID": "Cents1",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "time_ms",
+                "max": 0.10,
+                "min": 0.0,
+                "name": "Delay",
+                "symbolicID": "Time1",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Shift Level",
+                "symbolicID": "LevelVoice1",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_PitchDualPitchMono",
+        "name": "Dual Pitch",
+        "category": 7,
+        "load": 8.50,
+        "params": [
+            {
+                "default": 7,
+                "displayType": "integer_slider_signed",
+                "max": 24,
+                "min": -24,
+                "name": "Interval 1",
+                "symbolicID": "Interval1",
+                "valueType": 0
+            },
+            {
+                "default": 0.0,
+                "displayType": "cents",
+                "max": 50.0,
+                "min": -50.0,
+                "name": "Cents 1",
+                "symbolicID": "Cents1",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "time_ms",
+                "max": 0.10,
+                "min": 0.0,
+                "name": "Delay 1",
+                "symbolicID": "Time1",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "V1 Level",
+                "symbolicID": "LevelVoice1",
+                "valueType": 1
+            },
+            {
+                "default": 16,
+                "displayType": "integer_slider_signed",
+                "max": 24,
+                "min": -24,
+                "name": "Interval 2",
+                "symbolicID": "Interval2",
+                "valueType": 0
+            },
+            {
+                "default": -5.0,
+                "displayType": "cents",
+                "max": 50.0,
+                "min": -50.0,
+                "name": "Cents 2",
+                "symbolicID": "Cents2",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "time_ms",
+                "max": 0.10,
+                "min": 0.0,
+                "name": "Delay 2",
+                "symbolicID": "Time2",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "V2 Level",
+                "symbolicID": "LevelVoice2",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Synth4OSCGeneratorMono",
+        "name": "4 OSC Generator",
+        "category": 7,
+        "load": 7.50,
+        "params": [
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc1 Shape",
+                "symbolicID": "Osc1Shape",
+                "valueType": 0
+            },
+            {
+                "default": 110.0,
+                "displayType": "frequency",
+                "max": 10000.0,
+                "min": 20.0,
+                "name": "Osc1 Freq",
+                "symbolicID": "Osc1Freq",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc1 Level",
+                "symbolicID": "Osc1Level",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc2 Shape",
+                "symbolicID": "Osc2Shape",
+                "valueType": 0
+            },
+            {
+                "default": 220.0,
+                "displayType": "frequency",
+                "max": 10000.0,
+                "min": 20.0,
+                "name": "Osc2 Freq",
+                "symbolicID": "Osc2Freq",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc2 Level",
+                "symbolicID": "Osc2Level",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc3 Shape",
+                "symbolicID": "Osc3Shape",
+                "valueType": 0
+            },
+            {
+                "default": 440.0,
+                "displayType": "frequency",
+                "max": 10000.0,
+                "min": 20.0,
+                "name": "Osc3 Freq",
+                "symbolicID": "Osc3Freq",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc3 Level",
+                "symbolicID": "Osc3Level",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc4 Shape",
+                "symbolicID": "Osc4Shape",
+                "valueType": 0
+            },
+            {
+                "default": 660.0,
+                "displayType": "frequency",
+                "max": 10000.0,
+                "min": 20.0,
+                "name": "Osc4 Freq",
+                "symbolicID": "Osc4Freq",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc4 Level",
+                "symbolicID": "Osc4Level",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "time_ms",
+                "max": 10.0,
+                "min": 0.010,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 3.0,
+                "displayType": "time_ms",
+                "max": 10.0,
+                "min": 0.010,
+                "name": "Decay",
+                "symbolicID": "Decay",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Dry Level",
+                "symbolicID": "DryLevel",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "displayType": "off_on",
+                "max": true,
+                "min": false,
+                "name": "Rise Time Switch",
+                "symbolicID": "RiseTimeSwitch",
+                "valueType": 2
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Synth3NoteGeneratorMono",
+        "name": "3 Note Generator",
+        "category": 7,
+        "load": 7.50,
+        "params": [
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc1 Shape",
+                "symbolicID": "Osc1Shape",
+                "valueType": 0
+            },
+            {
+                "default": 3,
+                "displayType": "integer_slider",
+                "max": 8,
+                "min": 0,
+                "name": "Osc1 Oct",
+                "symbolicID": "Osc1Octave",
+                "valueType": 0
+            },
+            {
+                "default": 0,
+                "displayType": "note_pitch",
+                "max": 11,
+                "min": 0,
+                "name": "Osc1 Note",
+                "symbolicID": "Osc1Note",
+                "valueType": 0
+            },
+            {
+                "assign": 1,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc1 Level",
+                "symbolicID": "Osc1Level",
+                "valueType": 1
+            },
+            {
+                "default": 0.250,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc1 Glide",
+                "symbolicID": "Osc1Glide",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc2 Shape",
+                "symbolicID": "Osc2Shape",
+                "valueType": 0
+            },
+            {
+                "default": 3,
+                "displayType": "integer_slider",
+                "max": 8,
+                "min": 0,
+                "name": "Osc2 Oct",
+                "symbolicID": "Osc2Octave",
+                "valueType": 0
+            },
+            {
+                "default": 7,
+                "displayType": "note_pitch",
+                "max": 11,
+                "min": 0,
+                "name": "Osc2 Note",
+                "symbolicID": "Osc2Note",
+                "valueType": 0
+            },
+            {
+                "assign": 3,
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc2 Level",
+                "symbolicID": "Osc2Level",
+                "valueType": 1
+            },
+            {
+                "default": 0.250,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc2 Glide",
+                "symbolicID": "Osc2Glide",
+                "valueType": 1
+            },
+            {
+                "default": 3,
+                "displayType": "wave_shape",
+                "max": 4,
+                "min": 0,
+                "name": "Osc3 Shape",
+                "symbolicID": "Osc3Shape",
+                "valueType": 0
+            },
+            {
+                "default": 4,
+                "displayType": "integer_slider",
+                "max": 8,
+                "min": 0,
+                "name": "Osc3 Oct",
+                "symbolicID": "Osc3Octave",
+                "valueType": 0
+            },
+            {
+                "default": 4,
+                "displayType": "note_pitch",
+                "max": 11,
+                "min": 0,
+                "name": "Osc3 Note",
+                "symbolicID": "Osc3Note",
+                "valueType": 0
+            },
+            {
+                "default": 0.50,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc3 Level",
+                "symbolicID": "Osc3Level",
+                "valueType": 1
+            },
+            {
+                "default": 0.250,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Osc3 Glide",
+                "symbolicID": "Osc3Glide",
+                "valueType": 1
+            },
+            {
+                "default": 0.50,
+                "displayType": "time_ms",
+                "max": 10.0,
+                "min": 0.010,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 3.0,
+                "displayType": "time_ms",
+                "max": 10.0,
+                "min": 0.010,
+                "name": "Decay",
+                "symbolicID": "Decay",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "generic_knob",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Dry Level",
+                "symbolicID": "DryLevel",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "displayType": "off_on",
+                "max": true,
+                "min": false,
+                "name": "Rise Time Switch",
+                "symbolicID": "RiseTimeSwitch",
+                "valueType": 2
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_DM4BassOctaver",
+        "name": "Bass Octaver",
+        "category": 7,
+        "load": 4.50,
+        "params": [
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Tone",
+                "symbolicID": "Tone",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Normal",
+                "symbolicID": "Normal",
+                "valueType": 1
+            },
+            {
+                "default": 0.850,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Octave",
+                "symbolicID": "Octave",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_FM4AttackSynth",
+        "name": "Attack Synth",
+        "category": 7,
+        "load": 5.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.80,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Frequency",
+                "symbolicID": "Freq",
+                "valueType": 1
+            },
+            {
+                "default": 2,
+                "displayType": "wave_synth",
+                "max": 2,
+                "min": 0,
+                "name": "Wave",
+                "symbolicID": "Wave",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Pitch",
+                "symbolicID": "Pitch",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_FM4Growler",
+        "name": "Growler",
+        "category": 7,
+        "load": 5.50,
+        "params": [
+            {
+                "default": 0.840,
+                "displayType": "frequency",
+                "max": 15.0,
+                "min": 0.0,
+                "name": "Speed",
+                "symbolicID": "Speed",
+                "valueType": 1
+            },
+            {
+                "assign": 5,
+                "default": 0.390,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Frequency",
+                "symbolicID": "Freq",
+                "valueType": 1
+            },
+            {
+                "default": 0.840,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Q",
+                "symbolicID": "Q",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Pitch",
+                "symbolicID": "Pitch",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": 6,
+                "displayType": "sync_note",
+                "max": 19,
+                "min": 1,
+                "name": "Note Sync",
+                "symbolicID": "SyncSelect1",
+                "valueType": 0
+            },
+            {
+                "default": false,
+                "displayType": "off_on",
+                "max": true,
+                "min": false,
+                "name": "Tempo Sync",
+                "symbolicID": "TempoSync1",
+                "valueType": 2
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_FM4OctiSynth",
+        "name": "Octi Synth",
+        "category": 7,
+        "load": 3.50,
+        "params": [
+            {
+                "default": 0.10,
+                "displayType": "frequency",
+                "max": 15.0,
+                "min": 0.0,
+                "name": "Speed",
+                "symbolicID": "Speed",
+                "valueType": 1
+            },
+            {
+                "assign": 5,
+                "default": 0.130,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Frequency",
+                "symbolicID": "Freq",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Q",
+                "symbolicID": "Q",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Depth",
+                "symbolicID": "Depth",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": 6,
+                "displayType": "sync_note",
+                "max": 19,
+                "min": 1,
+                "name": "Note Sync",
+                "symbolicID": "SyncSelect1",
+                "valueType": 0
+            },
+            {
+                "default": false,
+                "displayType": "off_on",
+                "max": true,
+                "min": false,
+                "name": "Tempo Sync",
+                "symbolicID": "TempoSync1",
+                "valueType": 2
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_FM4SynthOMatic",
+        "name": "Synth O Matic",
+        "category": 7,
+        "load": 4.50,
+        "params": [
+            {
+                "assign": 5,
+                "default": 0.70,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Frequency",
+                "symbolicID": "Frequency",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Q",
+                "symbolicID": "Q",
+                "valueType": 1
+            },
+            {
+                "default": 6,
+                "displayType": "integer_slider",
+                "max": 7,
+                "min": 0,
+                "name": "Wave",
+                "symbolicID": "Wave",
+                "valueType": 0
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Pitch",
+                "symbolicID": "Pitch",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_FM4SynthString",
+        "name": "Synth String",
+        "category": 7,
+        "load": 5.75,
+        "params": [
+            {
+                "default": 0.690,
+                "displayType": "frequency",
+                "max": 15.0,
+                "min": 0.0,
+                "name": "Speed",
+                "symbolicID": "Speed",
+                "valueType": 1
+            },
+            {
+                "assign": 5,
+                "default": 0.890,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Frequency",
+                "symbolicID": "Freq",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Attack",
+                "symbolicID": "Attack",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Pitch",
+                "symbolicID": "Pitch",
+                "valueType": 1
+            },
+            {
+                "default": 1.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": 6,
+                "displayType": "sync_note",
+                "max": 19,
+                "min": 1,
+                "name": "Note Sync",
+                "symbolicID": "SyncSelect1",
+                "valueType": 0
+            },
+            {
+                "default": false,
+                "displayType": "off_on",
+                "max": true,
+                "min": false,
+                "name": "Tempo Sync",
+                "symbolicID": "TempoSync1",
+                "valueType": 2
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_M13TwoVoiceHarmony",
+        "name": "Smart Harmony",
+        "category": 7,
+        "load": 5.50,
+        "params": [
+            {
+                "default": 0,
+                "displayType": "key_voice",
+                "max": 11,
+                "min": 0,
+                "name": "Key",
+                "symbolicID": "Key",
+                "valueType": 0
+            },
+            {
+                "default": 2,
+                "displayType": "pitch_shift",
+                "max": 8,
+                "min": -8,
+                "name": "Shift",
+                "symbolicID": "Shift",
+                "valueType": 0
+            },
+            {
+                "default": 0,
+                "displayType": "scale_voice",
+                "max": 7,
+                "min": 0,
+                "name": "Scale",
+                "symbolicID": "Scale",
+                "valueType": 0
+            },
+            {
+                "default": 0.50,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Mix",
+                "symbolicID": "Mix",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "BuzzWave",
+        "name": "Buzz Wave",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_buzz",
+                "min": 0,
+                "max": 6,
+                "default": 0
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.2,
+                "assign": 5
+            },
+            {
+                "symbolicID": "Decay",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 1.0
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.45
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "RezSynth",
+        "name": "Rez Synth",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 3
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.4
+            },
+            {
+                "symbolicID": "Decay",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.65
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.65
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SeismicSynth",
+        "name": "Seismik Synth",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 4
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.60
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SynthAnalog",
+        "name": "Analog Synth",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 1
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Decay",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.88
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SynthLead",
+        "name": "Synth Lead",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 1
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.13
+            },
+            {
+                "symbolicID": "Decay",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.5
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SynthString",
+        "name": "String Theory",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 4
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.76
+            },
+            {
+                "symbolicID": "Attack",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.76
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SynthFX",
+        "name": "Synth FX",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 0
+            },
+            {
+                "symbolicID": "Filter",
+                "name": "Filter",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Decay",
+                "name": "Decay",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.13
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.63
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "Saturn5RingMod",
+        "name": "Saturn 5 RingMod",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 1
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 1.0
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "SynthHarmony",
+        "name": "Synth Harmony",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "Wave",
+                "name": "Wave",
+                "valueType": 0,
+                "displayType": "wave_rezsynth",
+                "min": 0,
+                "max": 7,
+                "default": 0
+            },
+            {
+                "symbolicID": "Interval1",
+                "name": "Interval1",
+                "valueType": 0,
+                "displayType": "synthharmony_interval1",
+                "min": 1,
+                "max": 8,
+                "default": 7
+            },
+            {
+                "symbolicID": "Interval2",
+                "name": "Mix",
+                "valueType": 0,
+                "displayType": "synthharmony_interval2",
+                "min": 0,
+                "max": 8,
+                "default": 0
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.38
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+    {
+        "symbolicID": "DoubleBass",
+        "name": "Double Bass",
+        "load": 8.0,
+        "category": 7,
+        "devices": [
+            { "id": 2162695, "version": "0x01390100" },
+            { "id": 2162696, "version": "0x01390100" }
+        ],
+        "params": [
+            {
+                "symbolicID": "-1oct G",
+                "name": "-1 Octave",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.8
+            },
+            {
+                "symbolicID": "-2oct G",
+                "name": "-2 Octave",
+                "valueType": 1,
+                "displayType": "generic_knob",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.8
+            },
+            {
+                "symbolicID": "Mix",
+                "name": "Mix",
+                "valueType": 1,
+                "displayType": "percent",
+                "min": 0.0,
+                "max": 1.0,
+                "default": 0.5
+            },
+            {
+                "symbolicID": "Level",
+                "name": "Level",
+                "valueType": 1,
+                "displayType": "volume",
+                "min": -60.0,
+                "max": 6.0,
+                "default": 0.0
+            },
+            {
+                "symbolicID": "@enabled",
+                "name": "Enabled",
+                "valueType": 2,
+                "min": false,
+                "max": true,
+                "default": true
+            }
+        ]
+    },
+  {
+    "symbolicID" : "VIC_PitchBoctaverMono",
+    "name" : "Boctaver",
+    "load" : 5.0,
+    "category" : 7,
+	"devices": [
+		{ "id": 2162695, "version": "0x01400500" },
+		{ "id": 2162696, "version": "0x01400500" }
+	],
+    "params" : [
+      {
+        "symbolicID" : "Oct1Level",
+        "name" : "-1 Oct",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.6
+      },
+      {
+        "symbolicID" : "Oct2Level",
+        "name" : "-2 Oct",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.3
+      },
+      {
+        "symbolicID" : "DryLevel",
+        "name" : "Dry Level",
+        "valueType" : 1,
+        "displayType" : "generic_knob",
+        "min" : 0.0,
+        "max" : 1.0,
+        "default" : 0.6
+      },
+      {
+        "symbolicID" : "@enabled",
+        "name" : "Enabled",
+        "valueType" : 2,
+        "min" : false,
+        "max" : true,
+        "default" : true
+      }
+    ]
+  }
+]

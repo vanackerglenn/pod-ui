@@ -1,0 +1,106 @@
+[
+ {
+  "symbolicID" : "HD2_FXLoopMono1",
+  "name" : "FX Loop 1",
+  "category" : 12,
+  "load" : 2.00,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Send",
+    "symbolicID" : "Send",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Return",
+    "symbolicID" : "Return",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Trails",
+    "symbolicID" : "@trails",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_FXLoopStereo1_2",
+  "name" : "FX Loop 1/2",
+  "category" : 12,
+  "load" : 2.00,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Send",
+    "symbolicID" : "Send",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Return",
+    "symbolicID" : "Return",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "Trails",
+    "symbolicID" : "@trails",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ }
+]

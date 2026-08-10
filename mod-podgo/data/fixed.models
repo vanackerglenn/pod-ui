@@ -1,0 +1,308 @@
+[
+ {
+    "symbolicID": "@global_params",
+    "params": [
+        {
+            "symbolicID": "@tempo",
+            "name": "Tempo",
+            "valueType": 1,
+            "min": 20.0,
+            "max": 240.0,
+            "default": 120.0
+        },
+        {
+            "symbolicID": "@pedalstate",
+            "name": "Pedal State",
+            "valueType": 0,
+            "min": 0,
+            "max": 2,
+            "default": 2
+        },
+        {
+            "symbolicID": "@cursor_group",
+            "name": "Cursor Group",
+            "valueType": 3,
+            "min": "",
+            "max": "",
+            "default": ""
+        },
+        {
+            "symbolicID": "@current_snapshot",
+            "name": "Current Snapshot",
+            "valueType": 0,
+            "min": 0,
+            "max": 7,
+            "default": 0
+        }
+    ]
+ },
+ {
+  "symbolicID" : "HD2_ImpulseResponse1024Mono",
+  "name" : "IR 1024",
+  "category" : 16,
+  "load" : 2.5,
+  "params" : [
+   {
+    "default" : 1,
+    "displayType" : "ir_select",
+    "max" : 128,
+    "min" : 1,
+    "name" : "IR Select",
+    "symbolicID" : "Index",
+    "valueType" : 0
+   },
+   {
+    "default" : 19.90,
+    "displayType" : "eq_low_cut",
+    "max" : 500.0,
+    "min" : 19.90,
+    "name" : "Low Cut",
+    "symbolicID" : "LowCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 20100.0,
+    "displayType" : "eq_high_cut",
+    "max" : 20100.0,
+    "min" : 500.0,
+    "name" : "High Cut",
+    "symbolicID" : "HighCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Mix",
+    "symbolicID" : "Mix",
+    "valueType" : 1
+   },
+   {
+    "default" : -18.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_LooperMono",
+  "name" : "6 Switch Looper Mono",
+  "category" : 15,
+  "load" : 5.94,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Playback",
+    "symbolicID" : "Playback",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Overdub",
+    "symbolicID" : "Overdub",
+    "valueType" : 1
+   },
+   {
+    "default" : 20.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Low Cut",
+    "symbolicID" : "lowCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 20000.0,
+    "displayType" : "frequency",
+    "max" : 20000.0,
+    "min" : 500.0,
+    "name" : "High Cut",
+    "symbolicID" : "highCut",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_LooperStereo",
+  "name" : "6 Switch Looper Stereo",
+  "category" : 15,
+  "load" : 5.94,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Playback",
+    "symbolicID" : "Playback",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Overdub",
+    "symbolicID" : "Overdub",
+    "valueType" : 1
+   },
+   {
+    "default" : 20.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Low Cut",
+    "symbolicID" : "lowCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 20000.0,
+    "displayType" : "frequency",
+    "max" : 20000.0,
+    "min" : 500.0,
+    "name" : "High Cut",
+    "symbolicID" : "highCut",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_LooperOneSwitchMono",
+  "name" : "1 Switch Looper Mono",
+  "category" : 15,
+  "load" : 5.94,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Playback",
+    "symbolicID" : "Playback",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Overdub",
+    "symbolicID" : "Overdub",
+    "valueType" : 1
+   },
+   {
+    "default" : 20.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Low Cut",
+    "symbolicID" : "lowCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 20000.0,
+    "displayType" : "frequency",
+    "max" : 20000.0,
+    "min" : 500.0,
+    "name" : "High Cut",
+    "symbolicID" : "highCut",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_LooperOneSwitchStereo",
+  "name" : "1 Switch Looper Stereo",
+  "category" : 15,
+  "load" : 5.94,
+  "params" : [
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Playback",
+    "symbolicID" : "Playback",
+    "valueType" : 1
+   },
+   {
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 0.0,
+    "min" : -60.0,
+    "name" : "Overdub",
+    "symbolicID" : "Overdub",
+    "valueType" : 1
+   },
+   {
+    "default" : 20.0,
+    "displayType" : "frequency",
+    "max" : 500.0,
+    "min" : 20.0,
+    "name" : "Low Cut",
+    "symbolicID" : "lowCut",
+    "valueType" : 1
+   },
+   {
+    "default" : 20000.0,
+    "displayType" : "frequency",
+    "max" : 20000.0,
+    "min" : 500.0,
+    "name" : "High Cut",
+    "symbolicID" : "highCut",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ }
+]

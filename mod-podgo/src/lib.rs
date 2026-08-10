@@ -2,6 +2,7 @@ mod builders;
 mod config;
 mod handler;
 mod model;
+mod models_db;
 mod module;
 
 // POD Go device-specific USB code, moved here from pod-usb so that crate

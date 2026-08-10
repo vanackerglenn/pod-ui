@@ -639,6 +639,38 @@ fn module_from_map(entries: &[(Value, Value)]) -> Option<ModuleInfo> {
     })
 }
 
+/// Every `(numeric model id, category, name)` in [`MODULE_DB`], with the
+/// msgpack-hex keys decoded back to the integers the device puts on the wire.
+///
+/// These ids are the only identifier an Amp or Cab block has: a loaded preset
+/// carries name strings for the FX blocks but *nothing* for Amp/Cab, so their
+/// names are reconstructed from this table. `models_db` keys on the same ids.
+pub fn module_db_entries() -> impl Iterator<Item = (u64, &'static str, &'static str)> {
+    MODULE_DB
+        .iter()
+        .filter_map(|(hex, (cat, name))| Some((parse_type_id(hex)?, *cat, *name)))
+}
+
+/// Inverse of [`format_type_id`]: msgpack-hex back to the integer id.
+fn parse_type_id(hex: &str) -> Option<u64> {
+    let bytes: Vec<u8> = (0..hex.len())
+        .step_by(2)
+        .filter_map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok())
+        .collect();
+    match *bytes.first()? {
+        b if b < 0x80 => Some(b as u64),
+        0xcc => bytes.get(1).map(|&b| b as u64),
+        0xcd => Some(u16::from_be_bytes([*bytes.get(1)?, *bytes.get(2)?]) as u64),
+        0xce => Some(u32::from_be_bytes([
+            *bytes.get(1)?,
+            *bytes.get(2)?,
+            *bytes.get(3)?,
+            *bytes.get(4)?,
+        ]) as u64),
+        _ => None,
+    }
+}
+
 /// Reconstruct the MessagePack-byte hex form of an integer id (matching
 /// MODULE_DB's key format) for diagnostics / logging.
 fn format_type_id(v: u64) -> String {

@@ -1,0 +1,3000 @@
+[
+    {
+        "symbolicID": "HD2_Cab1x12BlueBell",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Blue Bell",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12Celest12H",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Celest 12H",
+        "params": [
+            {
+                "default": 11,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12FieldCoil",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Field Coil",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12Lead80",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Lead 80",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12USDeluxe",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 US Deluxe",
+        "params": [
+            {
+                "default": 6,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x15TucknGo",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x15 Ampeg B-15",
+        "params": [
+            {
+                "default": 10,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x6x9SoupProEllipse",
+        "category": 2,
+        "load": 6.00,
+        "name": "Soup Pro Ellipse",
+        "params": [
+            {
+                "default": 6,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "High Cut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x8SmallTweed",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x8 Small Tweed",
+        "params": [
+            {
+                "default": 8,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "Early Reflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12BlueBell",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Blue Bell",
+        "params": [
+            {
+                "default": 3,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "High Cut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12DoubleC12N",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Double C12N",
+        "params": [
+            {
+                "default": 5,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 3.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12Interstate",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Interstate",
+        "params": [
+            {
+                "default": 2,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "Low Cut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12JazzRivet",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Jazz Rivet",
+        "params": [
+            {
+                "default": 6,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12MailC12Q",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Mail C12Q",
+        "params": [
+            {
+                "default": 5,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 80.0,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 8000.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x12SilverBell",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Silver Bell",
+        "params": [
+            {
+                "default": 5,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 5.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab2x15Brute",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x15 Brute",
+        "params": [
+            {
+                "default": 4,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x10Rhino",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x10 Ampeg HLF",
+        "params": [
+            {
+                "default": 2,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x10TweedP10R",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x10 Tweed P10R",
+        "params": [
+            {
+                "default": 6,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x121960T75",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 1960 T75",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 3.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12Blackback30",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Blackback 30",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4X12CaliV30",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Cali V30",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12Greenback20",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Greenback 20",
+        "params": [
+            {
+                "default": 5,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12Greenback25",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Greenback 25",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12MandarinEM",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Mandarin EM",
+        "params": [
+            {
+                "default": 11,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12SoloLeadEM",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 SoloLead EM",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12UberT75",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Uber T75",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12UberV30",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 Uber V30",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12WhoWatt100",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 WhoWatt 100",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab4x12XXLV30",
+        "category": 2,
+        "load": 6.00,
+        "name": "4x12 XXL V30",
+        "params": [
+            {
+                "default": 0,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab6x10CaliPower",
+        "category": 2,
+        "load": 6.00,
+        "name": "6x10 Cali Power",
+        "params": [
+            {
+                "default": 12,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab8x10SVBeast",
+        "category": 2,
+        "load": 6.00,
+        "name": "8x10 Ampeg SVT-E",
+        "params": [
+            {
+                "default": 12,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "High Cut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12CaliExt",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Cali EXT",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12CaliIV",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Cali IV",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12DelSol",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Del Sol",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12MatchG25",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Match G25",
+        "params": [
+            {
+                "default": 6,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12MatchH30",
+        "category": 2,
+        "load": 6.00,
+        "name": "2x12 Match H30",
+        "params": [
+            {
+                "default": 11,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x18DelSol",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x18 Del Sol",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x18WoodyBlue",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x18 Woody Blue",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12Fullerton5C3",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Fullerton",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12Grammatico5E3",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 Grammatico",
+        "params": [
+            {
+                "default": 1,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 1.50,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 19.90,
+                "displayType": "eq_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 20100.0,
+                "displayType": "eq_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x10PrincessCopperhead",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x10 US Princess",
+        "devices": [
+            { "id": 2162695, "version": "0x01130000" },
+            { "id": 2162696, "version": "0x01130000" }
+        ],
+        "params": [
+            {
+                "default": 12,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 2.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "default": 80.0,
+                "displayType": "cab_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "default": 8000.0,
+                "displayType": "cab_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    },
+    {
+        "symbolicID": "HD2_Cab1x12PrincessBlue",
+        "category": 2,
+        "load": 6.00,
+        "name": "1x12 US Princess",
+        "devices": [
+            { "id": 2162695, "version": "0x01130000" },
+            { "id": 2162696, "version": "0x01130000" }
+        ],
+        "params": [
+            {
+                "default": 5,
+                "displayType": "mic",
+                "max": 15,
+                "min": 0,
+                "name": "Mic",
+                "symbolicID": "@mic",
+                "valueType": 0
+            },
+            {
+                "default": 4.0,
+                "displayType": "cab_mic_distance",
+                "max": 12.0,
+                "min": 1.0,
+                "name": "Distance",
+                "symbolicID": "Distance",
+                "valueType": 1
+            },
+            {
+                "assign": 1,
+                "default": 80.0,
+                "displayType": "cab_low_cut",
+                "max": 500.0,
+                "min": 19.90,
+                "name": "Low Cut",
+                "symbolicID": "LowCut",
+                "valueType": 1
+            },
+            {
+                "assign": 2,
+                "default": 8000.0,
+                "displayType": "cab_high_cut",
+                "max": 20100.0,
+                "min": 500.0,
+                "name": "High Cut",
+                "symbolicID": "HighCut",
+                "valueType": 1
+            },
+            {
+                "assign": 3,
+                "default": 0.0,
+                "displayType": "percent",
+                "max": 1.0,
+                "min": 0.0,
+                "name": "Early Reflections",
+                "symbolicID": "EarlyReflections",
+                "valueType": 1
+            },
+            {
+                "default": 0.0,
+                "displayType": "volume",
+                "max": 6.0,
+                "min": -60.0,
+                "name": "Level",
+                "symbolicID": "Level",
+                "valueType": 1
+            },
+            {
+                "default": true,
+                "max": true,
+                "min": false,
+                "name": "Enabled",
+                "symbolicID": "@enabled",
+                "valueType": 2
+            }
+        ]
+    }
+]

@@ -1,0 +1,151 @@
+[
+ {
+  "symbolicID" : "HD2_VolPanGainStereo",
+  "name" : "Gain",
+  "category" : 17,
+  "load" : 1.50,
+  "params" : [
+   {
+    "assign" : 2,
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 12.0,
+    "min" : -120.0,
+    "name" : "Gain",
+    "symbolicID" : "Gain",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_VolPanVolStereo",
+  "name" : "Volume",
+  "category" : 17,
+  "load" : 1.50,
+  "params" : [
+   {
+    "default" : 1.0,
+    "displayType" : "percent",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Position",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "volume_curve",
+    "max" : true,
+    "min" : false,
+    "name" : "Curve",
+    "symbolicID" : "VolumeTaper",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_VolPanPanStereo",
+  "name" : "Pan",
+  "category" : 17,
+  "load" : 1.50,
+  "params" : [
+   {
+    "assign" : 1,
+    "default" : 0.50,
+    "displayType" : "pan",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Pan",
+    "symbolicID" : "Pedal",
+    "valueType" : 1
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ },
+ {
+  "symbolicID" : "HD2_VolPanStereoWidthStereo",
+  "name" : "Stereo Width",
+  "category" : 17,
+  "load" : 1.50,
+  "params" : [
+   {
+    "default" : 1.0,
+    "displayType" : "percent_width",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Width",
+    "symbolicID" : "Width",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "off_on",
+    "max" : true,
+    "min" : false,
+    "name" : "LR In Swap",
+    "symbolicID" : "LR In Swap",
+    "valueType" : 2
+   },
+   {
+    "assign" : 1,
+    "default" : 0.50,
+    "displayType" : "pan",
+    "max" : 1.0,
+    "min" : 0.0,
+    "name" : "Balance",
+    "symbolicID" : "Balance",
+    "valueType" : 1
+   },
+   {
+    "assign" : 2,
+    "default" : 0.0,
+    "displayType" : "volume",
+    "max" : 6.0,
+    "min" : -60.0,
+    "name" : "Level",
+    "symbolicID" : "Level",
+    "valueType" : 1
+   },
+   {
+    "default" : false,
+    "displayType" : "polarity",
+    "max" : true,
+    "min" : false,
+    "name" : "R Polarity",
+    "symbolicID" : "R Polarity",
+    "valueType" : 2
+   },
+   {
+    "default" : true,
+    "max" : true,
+    "min" : false,
+    "name" : "Enabled",
+    "symbolicID" : "@enabled",
+    "valueType" : 2
+   }
+  ]
+ }
+]

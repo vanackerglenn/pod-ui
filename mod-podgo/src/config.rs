@@ -245,122 +245,17 @@ pub static FX_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
     v
 });
 
-// Editable per-model parameter data, filled in from the device / owner's
-// manual. Editing module_params.toml updates the UI with no code changes —
-// the Nth param entry maps to the Nth value the device emits for that model.
-#[derive(serde::Deserialize)]
-struct TomlParam {
-    name: String,
-    /// References a built-in or `[types]`-defined param type. Defaults to "percent".
-    #[serde(default)] kind: String,
-    // Optional inline overrides of the referenced type's fields.
-    #[serde(default)] unit: Option<String>,
-    #[serde(default)] min: Option<f64>,
-    #[serde(default)] max: Option<f64>,
-    #[serde(default)] decimals: Option<u8>,
-    #[serde(default)] off: Option<String>,   // "min" | "max"
-    #[serde(default)] options: Vec<String>,
-}
-/// A `[types.<name>]` entry: same fields as an inline override, plus an optional
-/// widget `kind` ("numeric" | "enum" | "bool"). Inherits the built-in type of
-/// the same name (if any), then applies whatever fields are set.
-#[derive(serde::Deserialize)]
-struct TomlType {
-    #[serde(default)] kind: String,
-    #[serde(default)] unit: Option<String>,
-    #[serde(default)] min: Option<f64>,
-    #[serde(default)] max: Option<f64>,
-    #[serde(default)] decimals: Option<u8>,
-    #[serde(default)] off: Option<String>,
-    #[serde(default)] options: Vec<String>,
-}
-#[derive(serde::Deserialize)]
-struct TomlModule { name: String, #[serde(default)] params: Vec<TomlParam> }
-#[derive(serde::Deserialize)]
-struct TomlModuleFile {
-    #[serde(default)] types: HashMap<String, TomlType>,
-    #[serde(default)] module: Vec<TomlModule>,
-}
-
-fn parse_edge(s: &Option<String>) -> Option<Edge> {
-    match s.as_deref().map(|x| x.trim().to_ascii_lowercase()).as_deref() {
-        Some("min") => Some(Edge::Min),
-        Some("max") => Some(Edge::Max),
-        _ => None,
-    }
-}
-
-fn parse_widget(s: &str) -> ParamKind {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "enum" => ParamKind::Enum,
-        "bool" => ParamKind::Bool,
-        _ => ParamKind::Numeric,
-    }
-}
-
-/// Built-in types overlaid with any `[types]` table entries (each inheriting the
-/// built-in of the same name, then applying its set fields).
-fn build_types(toml_types: &HashMap<String, TomlType>) -> HashMap<String, ParamType> {
-    let mut types = builtin_types();
-    for (name, t) in toml_types {
-        let mut base = types.get(name).cloned().unwrap_or_default();
-        if !t.kind.trim().is_empty() { base.kind = parse_widget(&t.kind); }
-        if let Some(u) = &t.unit { base.unit = u.clone(); }
-        if let Some(v) = t.min { base.min = v; }
-        if let Some(v) = t.max { base.max = v; }
-        if let Some(v) = t.decimals { base.decimals = v; }
-        if t.off.is_some() { base.off_at = parse_edge(&t.off); }
-        if !t.options.is_empty() { base.options = t.options.clone(); }
-        types.insert(name.clone(), base);
-    }
-    types
-}
-
-/// Resolve one param against the type registry, then apply its inline overrides.
-fn resolve_param(p: TomlParam, types: &HashMap<String, ParamType>) -> ParamDef {
-    let key = if p.kind.trim().is_empty() { "percent" } else { p.kind.trim() };
-    let base = types.get(key).cloned().unwrap_or_default();
-    let mut def = ParamDef::from_type(p.name, &base);
-    if let Some(u) = p.unit { def.unit = u; }
-    if let Some(v) = p.min { def.min = v; }
-    if let Some(v) = p.max { def.max = v; }
-    if let Some(v) = p.decimals { def.decimals = v; }
-    if p.off.is_some() { def.off_at = parse_edge(&p.off); }
-    if !p.options.is_empty() {
-        def.options = p.options;
-        def.kind = ParamKind::Enum;   // inline options imply a dropdown
-    }
-    def
-}
-
-static MODULE_PARAMS: Lazy<HashMap<String, ParamSpec>> = Lazy::new(|| {
-    let src = include_str!("../module_params.toml");
-    match toml::from_str::<TomlModuleFile>(src) {
-        Ok(f) => {
-            let types = build_types(&f.types);
-            f.module.into_iter()
-                .filter(|m| !m.params.is_empty())
-                .map(|m| {
-                    let defs = m.params.into_iter()
-                        .map(|p| resolve_param(p, &types))
-                        .collect();
-                    (m.name, ParamSpec::from_defs(defs))
-                })
-                .collect()
+/// Per-model param spec, from POD Go Edit's own model database (see
+/// [`crate::models_db`]). The legacy hand-mapped builder configs remain the
+/// fallback for anything the data files don't describe.
+///
+/// `id` is the numeric model id the preset block carries — the unambiguous
+/// key. Pass `None` only when it isn't available.
+fn param_spec_for_id(id: Option<u64>, name: &str) -> ParamSpec {
+    if let Some(m) = crate::models_db::DB.resolve(id, name) {
+        if !m.spec.is_empty() {
+            return m.spec.clone();
         }
-        Err(e) => {
-            log::error!("failed to parse module_params.toml: {e}");
-            HashMap::new()
-        }
-    }
-});
-
-/// Per-model param spec. `module_params.toml` is the source of truth (fill it in
-/// to surface a model's params); the legacy hand-mapped configs are the fallback
-/// for anything not yet present there.
-fn param_spec_for(name: &str) -> ParamSpec {
-    if let Some(s) = MODULE_PARAMS.get(name) {
-        return s.clone();
     }
     if let Some(c) = STOMP_CONFIG.iter().find(|c| c.name == name) {
         return spec_from_labels(&c.labels, "stomp");
@@ -372,6 +267,10 @@ fn param_spec_for(name: &str) -> ParamSpec {
         return spec_from_labels(&c.labels, "delay");
     }
     ParamSpec::default()
+}
+
+fn param_spec_for(name: &str) -> ParamSpec {
+    param_spec_for_id(None, name)
 }
 
 /// Convert a builder-style labels map (keys `"{prefix}_param{n}"` or
@@ -400,15 +299,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn module_params_load_from_toml() {
-        // module_params.toml is the hand-edited source of truth, so assert the
-        // loader works rather than specific (editable) param names/counts.
-        assert!(!MODULE_PARAMS.is_empty(), "module_params.toml should parse to some specs");
-        // A filled model resolves with a non-empty first label.
+    fn param_specs_come_from_the_model_database() {
+        // A known model resolves with real params out of mod-podgo/data/.
         let s = param_spec_for("Kinky Boost");
-        assert!(!s.is_empty() && s.label(0).is_some());
+        assert_eq!(s.len(), 3);
+        assert_eq!(s.label(0), Some("Drive"));
         // Unknown model -> empty spec.
         assert!(param_spec_for("No Such Model").is_empty());
+    }
+
+    #[test]
+    fn wire_id_resolves_a_model_with_no_name_of_its_own() {
+        // A Cab block in a loaded preset carries only its numeric id — the name
+        // "2x12 Blue Bell" appears nowhere in the payload. Resolving by id has
+        // to work without a usable name.
+        let (id, _, name) = crate::preset_parser::module_db_entries()
+            .find(|(_, _, name)| *name == "2x12 Blue Bell")
+            .expect("2x12 Blue Bell is a known cab");
+        let spec = param_spec_for_id(Some(id), "");
+        assert_eq!(spec.len(), 6, "{name} should resolve from its id alone");
+        // The name alone can't do this: it is shared with the mic'd-IR cab.
+        assert!(crate::models_db::DB.resolve(None, name).is_none());
+    }
+
+    #[test]
+    fn ambiguous_names_are_refused_rather_than_guessed() {
+        // "Sweep Echo" is both the HD2 and the DL4 model. Without an id there
+        // is nothing to pick on, and picking wrong would misalign every
+        // positional param — so the database declines to answer. (config's
+        // own legacy builder tables may still supply a fallback spec.)
+        assert_eq!(crate::models_db::DB.lookup("Sweep Echo").len(), 2);
+        assert!(crate::models_db::DB.resolve(None, "Sweep Echo").is_none());
     }
 
     #[test]
