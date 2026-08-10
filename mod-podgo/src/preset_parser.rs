@@ -354,6 +354,9 @@ pub struct ModuleInfo {
 /// order. Categories only matter when *changing* a block's model.
 #[derive(Debug, Clone, Default)]
 pub struct ChainSlot {
+    /// What kind of entry this is. `Endpoint` entries are the flow's input and
+    /// output — present in the chain array but not positions in the chain.
+    pub class: Option<BlockClass>,
     /// The model here, or `None` if the position is empty.
     pub model_id: Option<u64>,
     /// The display name, when the preset carries one. Amp and Cab blocks have
@@ -361,6 +364,22 @@ pub struct ChainSlot {
     pub name: Option<String>,
     pub bypassed: bool,
     pub parameters: Vec<ParamValue>,
+}
+
+impl PresetData {
+    /// The chain array indices that are actual block positions, in order.
+    ///
+    /// Derived from each entry's class rather than assumed to be a fixed range:
+    /// the array also carries the flow's input and output, and taking those for
+    /// blocks would offset every position.
+    pub fn block_positions(&self) -> Vec<usize> {
+        self.chain
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.class.map(|c| c.is_block()).unwrap_or(false))
+            .map(|(i, _)| i)
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -437,6 +456,7 @@ pub fn parse_preset_data(data: &[u8]) -> PresetData {
         preset.chain = chain
             .iter()
             .map(|block| ChainSlot {
+                class: chain_block_class(block),
                 model_id: chain_block_model_id(block),
                 parameters: extract_params(block),
                 ..Default::default()
@@ -533,13 +553,31 @@ fn as_map(v: &Value) -> Option<&Vec<(Value, Value)>> {
     }
 }
 
-/// Extract a chain block's parameter values. The block stores its values under
-/// key 20, which contains several sub-maps keyed by a count; the populated one
-/// (vs. an empty snapshot copy) holds the value array at key 4.
+/// Extract a chain block's parameter values, from the field its class keeps
+/// them in: `11 -> 4` for a model block, `7 -> 4` for a looper.
+///
+/// Falls back to the longest value array in the meta when the class is one we
+/// don't know, so an unfamiliar block still shows something rather than
+/// nothing. Snapshot copies are empty, hence "longest".
 fn extract_params(block: &Value) -> Vec<ParamValue> {
     let Some(sub) = as_map(block).and_then(|m| map_get(m, 20)).and_then(as_map) else {
         return vec![];
     };
+    let values_at = |key: u64| {
+        map_get(sub, key)
+            .and_then(as_map)
+            .and_then(|m| map_get(m, 4))
+            .and_then(|x| x.as_array())
+    };
+    let known = match chain_block_class(block) {
+        Some(BlockClass::Model) => values_at(11),
+        Some(BlockClass::Looper) => values_at(7),
+        _ => None,
+    };
+    if let Some(arr) = known {
+        return arr.iter().map(value_to_param).collect();
+    }
+
     let mut best: Option<&Vec<Value>> = None;
     for (k, v) in sub {
         if k.as_u64() == Some(24) {
@@ -554,48 +592,80 @@ fn extract_params(block: &Value) -> Vec<ParamValue> {
     best.map(|arr| arr.iter().map(value_to_param).collect()).unwrap_or_default()
 }
 
-/// A chain block's model id, read from its meta map (key 20).
+/// What kind of object a chain entry is, from its key 19 class tag.
 ///
-/// The meta's shape depends on the kind of block — key 19 differs too, and
-/// looks like a type discriminator — so the id sits in one of two places:
+/// The chain array is heterogeneous: it holds the flow's input and output as
+/// well as the blocks, and different classes carry different *fields*. The
+/// integer keys inside a chain entry are field ids relative to its class, not
+/// a single fixed schema — which is why a looper's model id isn't where an
+/// ordinary block's is. Observed across real presets:
 ///
 /// ```text
-///   most blocks                     looper blocks
-///     19: 6                           19: 7
-///     20:                             20:
-///       24:                             8: 127        <- id, directly
-///         25: 100   <- id               9: 22
-///       11: { 4: [values] }             7: { 4: [values] }
+///   class  meta keys (key 20)      what it is        model id     values
+///     0    [5, 7]                  flow input        —            —
+///     1    [6, 7]                  flow output       —            —
+///     6    [9, 10, 11, 12, 24]     model block       24 -> 25     11 -> 4
+///     7    [7, 8, 9, 10]           looper block      8            7 -> 4
 /// ```
-///
-/// Both layouts are observed, not guessed: the nested one from the captured
-/// A30 Fawn Brt preset, the flat one from a preset holding a 6 Switch Looper
-/// (id 127 = `HD2_LooperMono`). A block whose id is in neither place is logged
-/// with its meta keys, so a third layout identifies itself instead of silently
-/// showing an empty position.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockClass {
+    /// An ordinary DSP model: amps, cabs, effects.
+    Model,
+    /// A looper. Not a DSP model, and laid out differently because of it.
+    Looper,
+    /// The flow's input or output — a chain entry, but not a block.
+    Endpoint,
+    /// A class we haven't seen. Treated as a block so it holds its position,
+    /// but its fields can't be read.
+    Unknown(u64),
+}
+
+impl BlockClass {
+    fn from_tag(tag: Option<u64>) -> Option<BlockClass> {
+        Some(match tag? {
+            0 | 1 => BlockClass::Endpoint,
+            6 => BlockClass::Model,
+            7 => BlockClass::Looper,
+            other => BlockClass::Unknown(other),
+        })
+    }
+
+    /// Whether this entry occupies a position in the signal chain.
+    pub fn is_block(&self) -> bool {
+        !matches!(self, BlockClass::Endpoint)
+    }
+}
+
+/// A chain entry's class tag (key 19).
+fn chain_block_class(block: &Value) -> Option<BlockClass> {
+    BlockClass::from_tag(
+        as_map(block)
+            .and_then(|m| map_get(m, 19))
+            .and_then(|v| v.as_u64()),
+    )
+}
+
+/// A chain block's model id, read from the field its class keeps it in.
 fn chain_block_model_id(block: &Value) -> Option<u64> {
     let meta = as_map(block).and_then(|m| map_get(m, 20)).and_then(as_map)?;
-
-    // The common layout: nested under key 24.
-    let nested = map_get(meta, 24)
-        .and_then(as_map)
-        .and_then(|m| map_get(m, 25))
-        .and_then(|v| v.as_u64());
-    if let Some(id) = nested {
-        return Some(id);
+    match chain_block_class(block) {
+        Some(BlockClass::Model) => map_get(meta, 24)
+            .and_then(as_map)
+            .and_then(|m| map_get(m, 25))
+            .and_then(|v| v.as_u64()),
+        Some(BlockClass::Looper) => map_get(meta, 8).and_then(|v| v.as_u64()),
+        Some(BlockClass::Endpoint) | None => None,
+        Some(BlockClass::Unknown(tag)) => {
+            let keys: Vec<u64> = meta.iter().filter_map(|(k, _)| k.as_u64()).collect();
+            log::warn!(
+                "preset: chain entry has unknown class {tag} (meta keys {keys:?}); \
+                 its model can't be read, so it holds its position but shows empty"
+            );
+            None
+        }
     }
-    // The looper layout: the id sits directly at key 8.
-    if let Some(id) = map_get(meta, 8).and_then(|v| v.as_u64()) {
-        return Some(id);
-    }
-
-    let keys: Vec<u64> = meta.iter().filter_map(|(k, _)| k.as_u64()).collect();
-    log::warn!(
-        "preset: chain block (type {:?}) has no model id at 20->24->25 or 20->8; meta keys {keys:?}",
-        as_map(block).and_then(|m| map_get(m, 19)).and_then(|v| v.as_u64())
-    );
-    None
 }
+
 
 
 fn value_to_param(v: &Value) -> ParamValue {
@@ -833,14 +903,16 @@ mod tests {
 
     // Integration check against a real captured preset, when present. Skips on
     // machines without the capture (e.g. CI). Capture via PODGO_DUMP=1.
-    /// Both observed chain-meta layouts yield the model id.
+    /// A chain entry's class decides where its fields live, so the id is read
+    /// per class rather than probed for.
     ///
-    /// Most blocks nest it at `20 -> 24 -> 25`; looper blocks put it directly
-    /// at `20 -> 8`. Reading only the first shape made a looper resolve to
-    /// nothing — it displayed as an empty position even though the preset named
-    /// it. The values here are the ones dumped from real presets.
+    /// The chain array is heterogeneous — flow endpoints and blocks together,
+    /// each class with its own field ids. Decoding every entry as a class-6
+    /// model block made a looper resolve to nothing: it displayed as an empty
+    /// position even though the preset named it. Values here are the ones
+    /// dumped from real presets.
     #[test]
-    fn model_id_is_found_in_both_meta_layouts() {
+    fn model_id_is_read_per_block_class() {
         use rmpv::Value;
         let n = |v: u64| Value::Integer(v.into());
         let map = |entries: Vec<(u64, Value)>| {
@@ -866,10 +938,37 @@ mod tests {
             Some("HD2_LooperMono")
         );
 
-        // A shape with the id in neither place resolves to nothing rather than
-        // to a wrong model.
+        assert_eq!(chain_block_class(&nested), Some(BlockClass::Model));
+        assert_eq!(chain_block_class(&flat), Some(BlockClass::Looper));
+
+        // The flow's input and output share the array but are not positions.
+        let input = map(vec![(19, n(0)), (20, map(vec![(5, n(0))]))]);
+        let output = map(vec![(19, n(1)), (20, map(vec![(6, n(0))]))]);
+        for endpoint in [&input, &output] {
+            assert_eq!(chain_block_class(endpoint), Some(BlockClass::Endpoint));
+            assert!(!chain_block_class(endpoint).unwrap().is_block());
+            assert_eq!(chain_block_model_id(endpoint), None);
+        }
+
+        // An unknown class resolves to no model rather than a wrong one, but
+        // still counts as a block so it keeps its position.
         let unknown = map(vec![(19, n(9)), (20, map(vec![(9, n(1))]))]);
+        assert_eq!(chain_block_class(&unknown), Some(BlockClass::Unknown(9)));
+        assert!(chain_block_class(&unknown).unwrap().is_block());
         assert_eq!(chain_block_model_id(&unknown), None);
+    }
+
+    /// Block positions come from the entries' classes, so the flow endpoints
+    /// that pad the chain array don't offset every block by one.
+    #[test]
+    fn block_positions_skip_the_flow_endpoints() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = parse_preset_data(data);
+        // The array is 0..=11: input, ten blocks, output.
+        assert_eq!(preset.chain.len(), 12);
+        assert_eq!(preset.block_positions(), (1..=10).collect::<Vec<usize>>());
+        assert_eq!(preset.chain[0].class, Some(BlockClass::Endpoint));
+        assert_eq!(preset.chain[11].class, Some(BlockClass::Endpoint));
     }
 
     #[test]

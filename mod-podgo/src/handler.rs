@@ -313,9 +313,11 @@ pub(crate) fn sync_controller_from_preset(
     controller: &Arc<Mutex<Controller>>,
     preset: &crate::preset_parser::PresetData,
 ) {
+    // Positions come from the preset's own chain, not from a fixed index range.
+    let positions = preset.block_positions();
     for slot in 1..=crate::config::CHAIN_SLOTS {
         let prefix = crate::config::slot_prefix(slot);
-        let block = preset.chain.get(slot);
+        let block = positions.get(slot - 1).and_then(|i| preset.chain.get(*i));
         let index = block
             .and_then(|b| b.model_id)
             .and_then(crate::config::model_index_for_id);
