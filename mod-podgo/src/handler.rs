@@ -34,7 +34,11 @@ impl Handler for PodGoHandler {
             }
             // Open the connection that stays open, *after* the name fetch:
             // both claim USB interface 0, and from here on this owns it.
-            let _ = tokio::task::spawn_blocking(crate::device::connect).await;
+            // Changes the device makes on its own arrive through the sink.
+            let c = controller.clone();
+            let sink: Arc<dyn Fn(crate::device::Event) + Send + Sync> =
+                Arc::new(move |event| apply_device_event(&c, event));
+            let _ = tokio::task::spawn_blocking(move || crate::device::connect(sink)).await;
 
             // Show whatever the device already has loaded, rather than leaving
             // the panel blank until the user presses Load.
@@ -254,6 +258,61 @@ pub(crate) fn control_value(def: &crate::model::ParamDef, pv: &crate::preset_par
     }
 }
 
+/// UI position (1-based) -> the device's number for that block.
+static SLOT_MAP: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+
+fn set_slot_map(positions: &[usize]) {
+    let mut m = SLOT_MAP.lock().unwrap_or_else(|e| e.into_inner());
+    *m = positions.iter().map(|p| *p as u8).collect();
+}
+
+/// The 1-based UI position for a device block number.
+fn ui_slot(device: u8) -> Option<usize> {
+    let m = SLOT_MAP.lock().unwrap_or_else(|e| e.into_inner());
+    m.iter().position(|s| *s == device).map(|i| i + 1)
+}
+
+/// Apply something the device did to the UI.
+///
+/// Runs on the connection's reader thread. The value is stored with
+/// **`Origin::MIDI`**, which is this codebase's marker for "the hardware told
+/// us" — `generic::midi_cc_in_handler` does the same for every MIDI device,
+/// and it is what stops the value being sent straight back once writing
+/// exists.
+fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device::Event) {
+    let crate::device::Event::Param { slot, index, value } = event else {
+        if let crate::device::Event::Other { op } = event {
+            debug!("Pod Go: undecoded device event, op {op}");
+        }
+        return;
+    };
+
+    let Some(ui) = ui_slot(slot) else {
+        debug!("Pod Go: a change arrived for block {slot}, which is not in the chain");
+        return;
+    };
+    if index as usize >= MAX_FX_PARAMS {
+        return;
+    }
+    let prefix = crate::config::slot_prefix(ui);
+
+    let mapped = {
+        let ctrl = controller.lock().unwrap();
+        let model = ctrl.get(&format!("{prefix}_select")).unwrap_or(0) as usize;
+        crate::config::ALL_MODELS
+            .get(model)
+            .and_then(|m| m.params.param(index as usize))
+            .and_then(|def| control_value(def, &value))
+    };
+    let Some(mapped) = mapped else {
+        debug!("Pod Go: block {slot} param {index} has no matching control");
+        return;
+    };
+    let name = format!("{prefix}_param{}", index + 1);
+    let mut ctrl = controller.lock().unwrap();
+    ctrl.set(&name, mapped, MIDI.into());
+}
+
 fn store_set(controller: &Arc<Mutex<Controller>>, name: &str, value: u16) {
     let mut ctrl = controller.lock().unwrap();
     ctrl.set_full(name, value, pod_core::store::Origin::NONE, pod_core::store::Signal::Force);
@@ -317,6 +376,9 @@ pub(crate) fn sync_controller_from_preset(
 ) {
     // Positions come from the preset's own chain, not from a fixed index range.
     let positions = preset.block_positions();
+    // The device names blocks by their index in this chain; the UI by position
+    // in its row. Publish the correspondence rather than assume the two agree.
+    set_slot_map(&positions);
     for slot in 1..=crate::config::CHAIN_SLOTS {
         let prefix = crate::config::slot_prefix(slot);
         let block = positions.get(slot - 1).and_then(|i| preset.chain.get(*i));

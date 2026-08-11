@@ -164,36 +164,88 @@ pub fn find_and_open_podgo() -> Result<rusb::DeviceHandle<rusb::Context>> {
     Ok(handle)
 }
 
+/// Where each channel's counter stands after the handshake.
+///
+/// The device hands out a window of output and expects the host to restate,
+/// on every outbound frame, how much of it has been consumed — and the count
+/// **starts at [`CREDIT_BASE`]**, not at zero. Capture 01 shows the channel
+/// open carrying `0x1000` and the very next frame `0x1009`, nine bytes later.
+///
+/// Advertising a small number is not a small error. The device reads it as a
+/// nearly-full buffer and splits its replies into four-byte fragments, so a
+/// notification arrives as a dozen unreadable pieces rather than one frame.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Credits {
+    pub x1: u32,
+    pub x80: u32,
+    pub x2: u32,
+}
+
+/// What an inbound frame adds to its channel's count.
+///
+/// A command or ack declares its payload in byte 0 (`dlen + 16`); a 272-byte
+/// stream page carries `byte0 = 8` like a bare frame and is worth its actual
+/// payload instead.
+/// Where a channel's counter starts. Not zero: the channel-open frame carries
+/// `0x1000` and everything after it is that plus what has been received.
+pub const CREDIT_BASE: u32 = 0x1000;
+
+pub fn credit_of(frame: &[u8]) -> u32 {
+    match frame.first() {
+        Some(8) => (frame.len() as u32).saturating_sub(16),
+        Some(b) => (*b as u32).saturating_sub(8),
+        None => 0,
+    }
+}
+
 /// Initialize the three USB channels (x1, x80, x2) via the handshake sequence.
 /// This is the one-time setup; after this, the session can send writes and poll for events.
-pub fn session_init(handle: &rusb::DeviceHandle<Context>) -> Result<()> {
+pub fn session_init(handle: &rusb::DeviceHandle<Context>) -> Result<Credits> {
     drain(handle);
 
+    let mut credits = Credits { x1: CREDIT_BASE, x80: CREDIT_BASE, x2: CREDIT_BASE };
+    let mut phase = |name: &str, packets: &[&[u8]]| -> Result<()> {
+        for p in packets {
+            let r = xfer(handle, p, 3000).map_err(|e| {
+                warn!("{name} failed: {e}");
+                e
+            })?;
+            // The channel-open exchange itself is not counted: after it the
+            // editor reports `0x1009`, which is the base plus the *second*
+            // reply's nine bytes only.
+            if r.len() >= 12 && r[11] != 0x02 {
+                match &r[4..8] {
+                    [0xEF, 0x03, 0x01, 0x10] => credits.x1 += credit_of(&r),
+                    [0xED, 0x03, 0x80, 0x10] => credits.x80 += credit_of(&r),
+                    [0xF0, 0x03, 0x02, 0x10] => credits.x2 += credit_of(&r),
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
+    };
+
     // Phase 1: x1 session (setlist resource)
-    xfer(handle, &[0x0C,0,0,0x28,1,0x10,0xEF,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0], 3000)
-        .and_then(|_| xfer(handle, &[0x11,0,0,0x18,1,0x10,0xEF,3,0,2,0,4,0,0x10,0,0,1,0,5,0,1,0,0,0,5,0,0,0], 3000))
-        .and_then(|_| xfer(handle, &[0x08,0,0,0x18,1,0x10,0xEF,3,0,3,0,8,0x20,0x10,0,0], 3000))
-        .and_then(|_| xfer(handle, &[0x08,0,0,0x18,1,0x10,0xEF,3,0,4,0,2,0x20,0x10,0,0], 3000))
-        .map_err(|e| {
-            warn!("x1 session failed: {e}");
-            e
-        })?;
+    phase("x1 session", &[
+        &[0x0C,0,0,0x28,1,0x10,0xEF,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0],
+        &[0x11,0,0,0x18,1,0x10,0xEF,3,0,2,0,4,0,0x10,0,0,1,0,5,0,1,0,0,0,5,0,0,0],
+        &[0x08,0,0,0x18,1,0x10,0xEF,3,0,3,0,8,0x20,0x10,0,0],
+        &[0x08,0,0,0x18,1,0x10,0xEF,3,0,4,0,2,0x20,0x10,0,0],
+    ])?;
 
     // Phase 2: x80 channel (edit buffer / write commands)
-    xfer(handle, &[0x0C,0,0,0x28,0x80,0x10,0xED,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0], 3000)
-        .and_then(|_| xfer(handle, &[0x11,0,0,0x18,0x80,0x10,0xED,3,0,2,0,4,0,0x10,0,0,1,0,6,0,1,0,0,0,6,0,0,0], 3000))
-        .map_err(|e| {
-            warn!("x80 channel failed: {e}");
-            e
-        })?;
+    phase("x80 channel", &[
+        &[0x0C,0,0,0x28,0x80,0x10,0xED,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0],
+        &[0x11,0,0,0x18,0x80,0x10,0xED,3,0,2,0,4,0,0x10,0,0,1,0,6,0,1,0,0,0,6,0,0,0],
+    ])?;
 
     // Phase 3: x2 channel (notifications / device events)
-    xfer(handle, &[0x0C,0,0,0x28,2,0x10,0xF0,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0], 3000)
-        .and_then(|_| xfer(handle, &[0x11,0,0,0x18,2,0x10,0xF0,3,0,2,0,4,0,0x10,0,0,1,0,4,0,1,0,0,0,4,0,0,0], 3000))
-        .map_err(|e| {
-            warn!("x2 channel failed: {e}");
-            e
-        })?;
+    phase("x2 channel", &[
+        &[0x0C,0,0,0x28,2,0x10,0xF0,3,0,0,0,2,0,1,0,0x21,0,0x10,0,0],
+        &[0x11,0,0,0x18,2,0x10,0xF0,3,0,2,0,4,0,0x10,0,0,1,0,4,0,1,0,0,0,4,0,0,0],
+    ])?;
 
-    Ok(())
+    debug!("Pod Go: handshake credits {credits:?}");
+    Ok(credits)
 }
+
