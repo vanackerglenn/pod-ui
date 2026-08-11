@@ -27,10 +27,12 @@
 //!   frame regardless truncates a patch at whatever page the heartbeat lands
 //!   between, or returns nothing at all.
 //!
-//! Everything else about the frames is untouched, including the value in bytes
-//! 12..16 on x80. On **x2** that value is load-bearing: it is the running count
-//! of what the host has taken, and the device stops sending after about twenty
-//! events if it goes stale — so every notification is acknowledged with it.
+//! * **The flow-control count must be maintained, on both channels.** Bytes
+//!   12..16 of every outbound frame restate how much of that channel's output
+//!   has been taken, counting from [`podgo_session::CREDIT_BASE`]. Let it go
+//!   stale and the device stops answering: on x2 it stops reporting after
+//!   about twenty events, and on x80 it stops serving patches — which reads as
+//!   a patch that will not load rather than as a protocol fault.
 //!
 //! # Falling back
 //!
@@ -74,6 +76,17 @@ const POLL_X2: [u8; 16] = [
     0x08,0,0,0x18, 0x02,0x10,0xF0,0x03, 0,0, 0,0x10, 0,0,0,0,
 ];
 
+/// The same request on the edit-buffer channel.
+///
+/// Capture 09 shows the editor polling **all three** channels while idle, not
+/// just the notification one. We only ever spoke on x80 during a read, so
+/// after a patch reload — when the device has things to say on it — nothing
+/// was outstanding for it to answer, and the next read went unanswered while
+/// x2 carried on reporting normally.
+const POLL_X80: [u8; 16] = [
+    0x08,0,0,0x18, 0x80,0x10,0xED,0x03, 0,0, 0,0x10, 0,0,0,0,
+];
+
 /// How often to ask while idle. POD Go Edit uses roughly this.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -85,8 +98,14 @@ const ACK_X2: [u8; 16] = [
     0x08,0,0,0x18, 0x02,0x10,0xF0,0x03, 0,0, 0,0x08, 0,0,0,0,
 ];
 
-/// Open the preset resource. Verbatim from the read path that works; only
-/// byte 9, the sequence number, is filled in per use.
+/// Open the preset resource.
+///
+/// The bytes are the read path's, with two fields filled in per use: byte 9,
+/// the sequence number, and bytes 12..16, the count of what we have taken from
+/// this channel. The `0x1009` sitting in the template is what that count
+/// happens to be for the first read of a fresh connection — which is why a
+/// constant worked for years of one-shot reads and stops working the moment a
+/// connection is reused.
 const OPEN_RESOURCE: [u8; 36] = [
     0x19,0,0,0x18, 0x80,0x10,0xED,3, 0,0, 0,4,
     0x09,0x10,0,0, 1,0,6,0, 9,0,0,0,
@@ -149,7 +168,9 @@ impl Chan {
 
 /// Build a command frame. Bytes 12..16 carry the value the working read path
 /// uses for that channel; the device accepts a stale one on command frames.
-fn command_frame(chan: Chan, seq: u8, cmd: u8, txn: u32, op: u64, payload: rmpv::Value) -> Vec<u8> {
+fn command_frame(
+    chan: Chan, seq: u8, cmd: u8, txn: u32, op: u64, payload: rmpv::Value, credit: Option<u32>,
+) -> Vec<u8> {
     use rmpv::Value;
     let body = Value::Map(vec![
         (Value::from(102u64), Value::from(txn)),
@@ -160,7 +181,7 @@ fn command_frame(chan: Chan, seq: u8, cmd: u8, txn: u32, op: u64, payload: rmpv:
     rmpv::encode::write_value(&mut encoded, &body).expect("in-memory encode");
 
     let (ch, id) = chan.header();
-    let field: u32 = if chan == Chan::X1 { 0x0000_1009 } else { 0x0000_100F };
+    let field: u32 = credit.unwrap_or(if chan == Chan::X1 { 0x0000_1009 } else { 0x0000_100F });
     let dlen = encoded.len() as u32;
     let f = field.to_le_bytes();
     let mut p = vec![
@@ -204,7 +225,17 @@ const PULL_PAGE: [u8; 16] = [
 #[derive(Clone, Debug)]
 pub enum Event {
     /// A parameter moved on the device itself.
-    Param { slot: u8, index: u8, value: ParamValue },
+    ///
+    /// `ordinary` is key 29: whether the index counts in the block's ordinary
+    /// parameters or in its `@`-prefixed ones. Both lists start at zero, so
+    /// without it a cab's Distance and its mic type are indistinguishable.
+    Param { slot: u8, index: u8, ordinary: bool, value: ParamValue },
+    /// A block was switched on or off.
+    ///
+    /// Reported under key **59**, not 119 — capture 02 shows
+    /// `{105:49, 106:{…, 106:{98:3, 59:true}}}`. Looking only for 119 made
+    /// every one of these fall through as undecodable.
+    Bypass { slot: u8, enabled: bool },
     /// Something else changed. We cannot decode it, and guessing is worse than
     /// re-reading the patch.
     Other { op: i64 },
@@ -233,6 +264,15 @@ struct Inner {
     txn: AtomicU32,
     /// Payload bytes taken from x2, restated in every acknowledgement.
     credit_x2: AtomicU32,
+    /// The same for x80.
+    ///
+    /// This was left as a constant for a long time because the read frames
+    /// carried one and reads worked. They worked because the constant *was*
+    /// the right count for the first read of a fresh connection. Hold the
+    /// connection open, read a patch or two, and the device has sent thousands
+    /// of bytes we never account for — the window closes and it stops
+    /// answering, which looks like a patch that suddenly will not load.
+    credit_x80: AtomicU32,
     alive: AtomicBool,
     /// Where x80 payload frames go while a preset is being read.
     reading: Mutex<Option<mpsc::Sender<Vec<u8>>>>,
@@ -249,7 +289,10 @@ impl Drop for Inner {
 
 pub struct Device {
     inner: Arc<Inner>,
-    reader: Option<std::thread::JoinHandle<()>>,
+    /// Both threads are joined on the way out. The poller holds an `Arc` too,
+    /// so leaving it running keeps the connection — and the interface — alive
+    /// past the point where anything else may claim it.
+    threads: Vec<std::thread::JoinHandle<()>>,
 }
 
 impl Drop for Device {
@@ -258,7 +301,7 @@ impl Drop for Device {
         // by the time this returns — anything that opens its own connection
         // (the one-shot fallback) cannot start until it is.
         self.inner.alive.store(false, Ordering::SeqCst);
-        if let Some(h) = self.reader.take() {
+        for h in self.threads.drain(..) {
             let _ = h.join();
         }
     }
@@ -292,6 +335,7 @@ impl Device {
             // Seeded from the handshake, and from the right base — see
             // `podgo_session::CREDIT_BASE`.
             credit_x2: AtomicU32::new(credits.x2),
+            credit_x80: AtomicU32::new(credits.x80),
             alive: AtomicBool::new(true),
             reading: Mutex::new(None),
             writing: Mutex::new(()),
@@ -303,16 +347,17 @@ impl Device {
         };
         // Keep a request outstanding on the notification channel, so the
         // device has something to answer the moment a knob moves.
-        {
+        let poller = {
             let inner = inner.clone();
             std::thread::spawn(move || {
                 while inner.alive.load(Ordering::SeqCst) {
                     inner.poll_x2();
+                    inner.poll_x80();
                     std::thread::sleep(POLL_INTERVAL);
                 }
-            });
-        }
-        let device = Device { inner, reader: Some(reader) };
+            })
+        };
+        let device = Device { inner, threads: vec![reader, poller] };
 
         // The probe that confirmed reporting did this immediately, before any
         // streaming read. Doing it later has been tried and does not report.
@@ -350,11 +395,13 @@ impl Device {
     pub fn subscribe(&self) {
         let mut open = OPEN_RESOURCE;
         open[9] = self.inner.next_seq_x80();
+        open[12..16].copy_from_slice(&self.inner.credit_x80.load(Ordering::SeqCst).to_le_bytes());
         if !self.send(&open) {
             return;
         }
         let mut sub = SUBSCRIBE;
         sub[9] = self.inner.next_seq_x80();
+        sub[12..16].copy_from_slice(&self.inner.credit_x80.load(Ordering::SeqCst).to_le_bytes());
         if self.send(&sub) {
             debug!("Pod Go: asked the device to report changes");
         }
@@ -370,7 +417,11 @@ impl Device {
                 Chan::X80 => self.inner.next_seq_x80(),
             };
             let txn = self.inner.next_txn();
-            let frame = command_frame(chan, seq, cmd, txn, op, payload);
+            let credit = match chan {
+                Chan::X1 => None, // x1 is only used here; leave its constant
+                Chan::X80 => Some(self.inner.credit_x80.load(Ordering::SeqCst)),
+            };
+            let frame = command_frame(chan, seq, cmd, txn, op, payload, credit);
             if !self.send(&frame) {
                 warn!("Pod Go: could not send connect op {op}");
                 return;
@@ -386,6 +437,7 @@ impl Device {
     fn stream_preset(&self, rx: &mpsc::Receiver<Vec<u8>>) -> Option<Vec<u8>> {
         let mut open = OPEN_RESOURCE;
         open[9] = self.inner.next_seq_x80();
+        open[12..16].copy_from_slice(&self.inner.credit_x80.load(Ordering::SeqCst).to_le_bytes());
         if !self.send(&open) {
             return None;
         }
@@ -393,6 +445,8 @@ impl Device {
 
         let mut request = READ_PRESET;
         request[9] = self.inner.next_seq_x80();
+        request[12..16]
+            .copy_from_slice(&self.inner.credit_x80.load(Ordering::SeqCst).to_le_bytes());
         if !self.send(&request) {
             return None;
         }
@@ -408,6 +462,8 @@ impl Device {
             }
             let mut pull = PULL_PAGE;
             pull[9] = self.inner.next_seq_x80();
+            pull[12..16]
+                .copy_from_slice(&self.inner.credit_x80.load(Ordering::SeqCst).to_le_bytes());
             if !self.send(&pull) {
                 break;
             }
@@ -452,6 +508,19 @@ impl Inner {
         let mut poll = POLL_X2;
         poll[9] = self.seq_x2.fetch_add(1, Ordering::SeqCst);
         poll[12..16].copy_from_slice(&self.credit_x2.load(Ordering::SeqCst).to_le_bytes());
+        self.send(&poll);
+    }
+
+    /// The same for the edit-buffer channel, but never while a read is in
+    /// flight — that conversation has its own requests, and a second one
+    /// interleaved would be answered out of turn.
+    fn poll_x80(&self) {
+        if self.reading.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
+            return;
+        }
+        let mut poll = POLL_X80;
+        poll[9] = self.next_seq_x80();
+        poll[12..16].copy_from_slice(&self.credit_x80.load(Ordering::SeqCst).to_le_bytes());
         self.send(&poll);
     }
 
@@ -603,6 +672,12 @@ fn decode_event(frame: &[u8]) -> Option<Event> {
     };
     let get = |k: u64| inner.iter().find(|(key, _)| key.as_u64() == Some(k)).map(|(_, v)| v);
     let slot = get(98).and_then(|v| v.as_u64());
+
+    // A block switched on or off carries key 59 and nothing else.
+    if let (Some(slot), Some(enabled)) = (slot, get(59).and_then(|v| v.as_bool())) {
+        return Some(Event::Bypass { slot: slot as u8, enabled });
+    }
+
     let index = get(28).and_then(|v| v.as_u64());
     // Coerced exactly as the preset parser coerces stored values, so a value
     // that arrives this way and one that is read back mean the same thing.
@@ -614,10 +689,17 @@ fn decode_event(frame: &[u8]) -> Option<Event> {
         _ => None,
     });
 
+    // Key 29 chooses the list. Captures 09 and 11 carry true for ordinary
+    // parameters; capture 10, a mic-type change, carries false.
+    let ordinary = get(29).and_then(|v| v.as_bool()).unwrap_or(true);
+
     match (slot, index, param) {
-        (Some(slot), Some(index), Some(value)) => {
-            Some(Event::Param { slot: slot as u8, index: index as u8, value })
-        }
+        (Some(slot), Some(index), Some(value)) => Some(Event::Param {
+            slot: slot as u8,
+            index: index as u8,
+            ordinary,
+            value,
+        }),
         _ => Some(Event::Other { op }),
     }
 }
@@ -645,9 +727,12 @@ fn hex(b: &[u8]) -> String {
     b.iter().take(48).map(|x| format!("{x:02x}")).collect()
 }
 
+/// The innermost map describing what changed: the one naming a block (98) and
+/// carrying either a parameter value (119) or a bypass flag (59).
 fn find_param_map(v: &rmpv::Value) -> Option<&Vec<(rmpv::Value, rmpv::Value)>> {
     let m = v.as_map()?;
-    if m.iter().any(|(k, _)| k.as_u64() == Some(119)) {
+    let has = |k: u64| m.iter().any(|(key, _)| key.as_u64() == Some(k));
+    if has(98) && (has(119) || has(59)) {
         return Some(m);
     }
     m.iter().find_map(|(_, val)| find_param_map(val))
@@ -755,12 +840,22 @@ pub fn read_preset() -> Option<PresetData> {
         let guard = held();
         match guard.as_ref() {
             Some(dev) => {
-                // One failure is not reason enough to give up a working
-                // connection; the device may simply have been busy.
-                dev.read_preset_raw().or_else(|| {
-                    debug!("Pod Go: the preset did not read, retrying");
-                    dev.read_preset_raw()
-                })
+                // Patience before force. Loading a patch takes the device a
+                // moment, during which it does not answer — and the burst of
+                // change reports it sends while doing so is the clue that it
+                // is working, not broken. Retrying beats tearing down a
+                // connection that is about to be fine: the one-shot fallback
+                // used to "fix" this only because it happened a second later.
+                let mut got = dev.read_preset_raw();
+                for attempt in 1..=3 {
+                    if got.is_some() {
+                        break;
+                    }
+                    debug!("Pod Go: the preset did not read, waiting (attempt {attempt}/3)");
+                    std::thread::sleep(Duration::from_millis(400 * attempt));
+                    got = dev.read_preset_raw();
+                }
+                got
             }
             None => None,
         }
@@ -961,7 +1056,7 @@ mod tests {
         let params: Vec<(u8, u8, f32)> = events
             .iter()
             .filter_map(|e| match e {
-                Event::Param { slot, index, value: ParamValue::Float(v) } => {
+                Event::Param { slot, index, value: ParamValue::Float(v), .. } => {
                     Some((*slot, *index, *v))
                 }
                 _ => None,
@@ -1037,6 +1132,30 @@ mod tests {
         // Which is exactly what the read frames have always hardcoded.
         assert_eq!(u32::from_le_bytes(OPEN_RESOURCE[12..16].try_into().unwrap()), 0x1009);
         assert_eq!(u32::from_le_bytes(READ_PRESET[12..16].try_into().unwrap()), 0x100F);
+    }
+
+    /// Switching a block off is reported under key 59, not 119. Decoding only
+    /// 119 made every one of these look undecodable, which is why enabling and
+    /// disabling a block did nothing in the panel.
+    #[test]
+    fn a_block_switched_off_decodes_as_bypass() {
+        // The frame from capture 02: {105:49, 106:{82:0, 68:5, 121:17,
+        //                             106:{98:3, 59:true}}}
+        let body = [
+            0x82u8, 0x69, 0x31, 0x6A, 0x84, 0x52, 0x00, 0x44, 0x05, 0x79, 0x11,
+            0x6A, 0x82, 0x62, 0x03, 0x3B, 0xC3,
+        ];
+        let mut frame = vec![0u8; 24];
+        frame[4..8].copy_from_slice(&X2_IN);
+        frame.extend_from_slice(&body);
+
+        match decode_event(&frame) {
+            Some(Event::Bypass { slot, enabled }) => {
+                assert_eq!(slot, 3);
+                assert!(enabled);
+            }
+            other => panic!("expected a bypass event, got {other:?}"),
+        }
     }
 
     /// A frame is only ours if it is on x80 and carries a payload. The 16-byte

@@ -280,11 +280,23 @@ fn ui_slot(device: u8) -> Option<usize> {
 /// and it is what stops the value being sent straight back once writing
 /// exists.
 fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device::Event) {
-    let crate::device::Event::Param { slot, index, value } = event else {
-        if let crate::device::Event::Other { op } = event {
-            debug!("Pod Go: undecoded device event, op {op}");
+    let (slot, index, ordinary, value) = match event {
+        crate::device::Event::Param { slot, index, ordinary, value } => {
+            (slot, index, ordinary, value)
         }
-        return;
+        crate::device::Event::Bypass { slot, enabled } => {
+            let Some(ui) = ui_slot(slot) else { return };
+            let name = format!("{}_enable", crate::config::slot_prefix(ui));
+            // Polarity is taken to match the preset's own "enabled" flag; if a
+            // block shows the opposite of the pedal, this is the line.
+            let mut ctrl = controller.lock().unwrap();
+            ctrl.set(&name, u16::from(enabled), MIDI.into());
+            return;
+        }
+        crate::device::Event::Other { op } => {
+            debug!("Pod Go: undecoded device event, op {op}");
+            return;
+        }
     };
 
     let Some(ui) = ui_slot(slot) else {
@@ -299,16 +311,26 @@ fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device:
     let mapped = {
         let ctrl = controller.lock().unwrap();
         let model = ctrl.get(&format!("{prefix}_select")).unwrap_or(0) as usize;
-        crate::config::ALL_MODELS
-            .get(model)
-            .and_then(|m| m.params.param(index as usize))
-            .and_then(|def| control_value(def, &value))
+        let model = crate::config::ALL_MODELS.get(model);
+        // The device's index counts in one of two lists — see `live_index`.
+        let at = model.and_then(|m| m.params.live_index(index as usize, ordinary));
+        let def = at.and_then(|at| model.and_then(|m| m.params.param(at)));
+        // Name what the index was taken to mean. A change landing on the wrong
+        // control is a mapping question, and this is the line that answers it
+        // without having to reason about parameter order from a file.
+        debug!(
+            "Pod Go: block {slot} {} param {index} = {value:?} -> {} / {} (position {ui})",
+            if ordinary { "ordinary" } else { "@" },
+            model.map(|m| m.name.as_str()).unwrap_or("?"),
+            def.map(|d| d.name.as_str()).unwrap_or("?"),
+        );
+        def.and_then(|def| control_value(def, &value)).map(|v| (at, v))
     };
-    let Some(mapped) = mapped else {
+    let Some((Some(at), mapped)) = mapped.map(|(a, v)| (a, v)) else {
         debug!("Pod Go: block {slot} param {index} has no matching control");
         return;
     };
-    let name = format!("{prefix}_param{}", index + 1);
+    let name = format!("{prefix}_param{}", at + 1);
     let mut ctrl = controller.lock().unwrap();
     ctrl.set(&name, mapped, MIDI.into());
 }

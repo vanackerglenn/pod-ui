@@ -101,6 +101,13 @@ pub struct ParamDef {
     pub decimals: u8,
     pub off_at: Option<Edge>,
     pub options: Vec<String>,
+    /// An `@`-prefixed parameter (`@mic`, `@trails`).
+    ///
+    /// The device keeps these in a list of their own: a live change carries
+    /// key 29 saying whether its index counts in the ordinary parameters or in
+    /// these. That is why turning Distance and turning the mic type both
+    /// report "index 0" — of different lists.
+    pub special: bool,
 }
 
 impl Default for ParamDef {
@@ -113,7 +120,7 @@ impl ParamDef {
     /// Build a param from a resolved [`ParamType`] and a display name.
     pub fn from_type(name: String, t: &ParamType) -> Self {
         ParamDef { name, kind: t.kind, unit: t.unit.clone(), min: t.min, max: t.max,
-            dsp_min: t.min, dsp_max: t.max,
+            dsp_min: t.min, dsp_max: t.max, special: false,
             decimals: t.decimals, off_at: t.off_at, options: t.options.clone() }
     }
 }
@@ -149,6 +156,18 @@ impl ParamSpec {
     }
     pub fn param(&self, idx: usize) -> Option<&ParamDef> {
         self.params.get(idx)
+    }
+
+    /// Where a live change's index lands.
+    ///
+    /// The device reports an index into one of two lists, chosen by key 29:
+    /// the ordinary parameters, or the `@`-prefixed ones. Since the spec keeps
+    /// ordinary parameters first, the first is the index itself and the second
+    /// is offset past them.
+    pub fn live_index(&self, index: usize, ordinary: bool) -> Option<usize> {
+        let first_special = self.params.iter().position(|p| p.special).unwrap_or(self.params.len());
+        let idx = if ordinary { index } else { first_special.checked_add(index)? };
+        (idx < self.params.len() && self.params[idx].special != ordinary).then_some(idx)
     }
     pub fn iter(&self) -> std::slice::Iter<'_, ParamDef> {
         self.params.iter()

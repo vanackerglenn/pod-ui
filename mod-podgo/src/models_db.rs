@@ -292,12 +292,13 @@ impl ModelDb {
                     .get(&m.symbolic_id)
                     .copied()
                     .unwrap_or(file_category);
-                let defs = m
+                let mut defs: Vec<ParamDef> = m
                     .params
                     .iter()
                     .filter(|p| !NON_POSITIONAL.contains(&p.symbolic_id.as_str()))
                     .map(|p| param_def(p, &controls))
                     .collect();
+                specials_last(&mut defs);
                 models.push(Model {
                     symbolic_id: m.symbolic_id,
                     name,
@@ -474,6 +475,28 @@ fn unit_from(units: &str) -> String {
     String::new()
 }
 
+/// Put the `@`-prefixed parameters after the ordinary ones, keeping the file's
+/// order within each group.
+///
+/// The device keeps two lists, and this is the order both of its own
+/// conventions follow:
+///
+/// * **Stored values.** The captured preset's cab reports
+///   `[1, 80, 8000, 0.45, 0, 10]`. In the file's order — `@mic` first, then
+///   Distance — that is Distance 80 (range 1–12), Low Cut 8000 (19.9–500) and
+///   Level 10 (−60–6): three impossibilities. Ordinary first, `@mic` last, and
+///   every value lands: distance 1, 80 Hz, 8000 Hz, 0.45, 0 dB, mic 10.
+/// * **Live changes.** A change carries key 29 saying which list its index
+///   counts in. Turning Distance reports index 0 of the ordinary list, and
+///   turning the mic type reports index 0 of the `@` list (capture 10) — so
+///   both are "index 0", and only this split tells them apart.
+///
+/// The same rule explains the reverb, whose `@trails` is already last in the
+/// file, and leaves every model without an `@` parameter untouched.
+fn specials_last(defs: &mut [ParamDef]) {
+    defs.sort_by_key(|d| d.special);
+}
+
 fn param_def(p: &RawParam, controls: &HashMap<String, RawControl>) -> ParamDef {
     let ctl = p
         .display_type
@@ -531,6 +554,8 @@ fn param_def(p: &RawParam, controls: &HashMap<String, RawControl>) -> ParamDef {
 
     ParamDef {
         name: p.name.clone(),
+        // `@mic`, `@trails`: the device indexes these separately from the rest.
+        special: p.symbolic_id.starts_with('@'),
         kind,
         unit,
         min,
@@ -546,6 +571,61 @@ fn param_def(p: &RawParam, controls: &HashMap<String, RawControl>) -> ParamDef {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every value a real preset's cab reports must land inside the range its
+    /// parameter declares. Reading them in the file's order puts three of six
+    /// outside — a frequency where a distance belongs — which shows up as
+    /// nonsense in the panel rather than as an error.
+    #[test]
+    fn a_captured_cab_reads_entirely_within_range() {
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        let cab = preset
+            .chain
+            .iter()
+            .find(|b| b.model_id == Some(53))
+            .expect("the captured preset has a cab");
+        let model = DB.by_wire_id(53).expect("model 53 resolves");
+        assert_eq!(model.category, "Cab");
+
+        assert_eq!(cab.parameters.len(), model.spec.len());
+        for (i, value) in cab.parameters.iter().enumerate() {
+            let def = model.spec.param(i).unwrap();
+            let v = match value {
+                crate::preset_parser::ParamValue::Float(f) => *f as f64,
+                crate::preset_parser::ParamValue::Int(n) => *n as f64,
+                _ => continue,
+            };
+            assert!(
+                v >= def.dsp_min && v <= def.dsp_max,
+                "{} = {v} is outside {}..{}", def.name, def.dsp_min, def.dsp_max
+            );
+        }
+        // Ordinary parameters first, `@` ones after — so Distance leads and
+        // the mic type, being `@mic`, comes last.
+        assert_eq!(model.spec.param(0).unwrap().name, "Distance");
+        assert_eq!(model.spec.param(5).unwrap().name, "Mic");
+        assert!(model.spec.param(5).unwrap().special);
+
+        // And that is what makes a live change land correctly: turning
+        // Distance reports index 0 of the ordinary list, turning the mic type
+        // index 0 of the `@` list (capture 10), and both must not collide.
+        assert_eq!(model.spec.live_index(0, true), Some(0));  // Distance
+        assert_eq!(model.spec.live_index(0, false), Some(5)); // Mic
+    }
+
+    /// The reverb's `@trails` is the same case: index 0 of the `@` list, while
+    /// index 0 of the ordinary list is Decay. Reading both as "parameter 0"
+    /// made turning Trails move the Decay control.
+    #[test]
+    fn trails_and_decay_are_both_index_zero_of_different_lists() {
+        let room = DB.lookup("Room").into_iter().next().expect("the Room reverb");
+        assert_eq!(room.spec.param(0).unwrap().name, "Decay");
+        let trails = room.spec.live_index(0, false).expect("an @ parameter");
+        assert!(room.spec.param(trails).unwrap().special);
+        assert_ne!(trails, 0);
+        assert_eq!(room.spec.live_index(0, true), Some(0));
+    }
 
     #[test]
     fn database_loads() {
