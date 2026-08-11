@@ -2,6 +2,7 @@ mod builders;
 mod config;
 mod device;
 mod handler;
+mod live;
 mod model;
 mod models_db;
 mod module;

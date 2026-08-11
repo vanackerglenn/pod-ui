@@ -66,7 +66,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use serde_json::Value as J;
 
-use crate::model::{Edge, ParamDef, ParamKind, ParamSpec};
+use crate::model::{Edge, ParamDef, ParamKind, ParamSpec, WireType};
 
 // === Embedded data files ===
 
@@ -557,6 +557,14 @@ fn param_def(p: &RawParam, controls: &HashMap<String, RawControl>) -> ParamDef {
         // `@mic`, `@trails`: the device indexes these separately from the rest.
         special: p.symbolic_id.starts_with('@'),
         kind,
+        // Kept separately from `kind` because the two genuinely differ: a
+        // slider (`Numeric`) is a float for a percent and an int for a
+        // semitone interval, and only this says which.
+        wire: match p.value_type {
+            0 => WireType::Int,
+            2 => WireType::Bool,
+            _ => WireType::Float,
+        },
         unit,
         min,
         max,

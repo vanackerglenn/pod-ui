@@ -90,6 +90,13 @@ const POLL_X80: [u8; 16] = [
 /// How often to ask while idle. POD Go Edit uses roughly this.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
+/// How long to wait for the device to answer an edit before sending the next.
+///
+/// The answer is the very next frame in every capture, so this is not a
+/// latency budget — it is the point at which we stop believing an answer is
+/// coming and let the queue move rather than wedging on one lost frame.
+const ACK_TIMEOUT: Duration = Duration::from_millis(200);
+
 /// Acknowledge an x2 notification. Byte 9 is the host's **own** sequence
 /// number — the two sides count independently, and this does not echo the
 /// device's — and bytes 12..16 the running count of x2 payload taken, which is
@@ -221,6 +228,122 @@ const PULL_PAGE: [u8; 16] = [
     0x08,0,0,0x18, 0x80,0x10,0xED,3, 0,0, 0,8, 0x0F,0x10,0x00,0,
 ];
 
+/// An edit on its way to the device.
+///
+/// # Focus (op 78) is sent when the block changes, not before every edit
+///
+/// The outbound x80 commands in the four edit captures are:
+///
+/// ```text
+/// 02  op41@3
+/// 03  op78@3 -> op78@10 -> op30@10 x33
+/// 04  op30@10 x48
+/// 05  op78@3 -> op40@3 -> op33 -> op23 -> op22
+/// ```
+///
+/// Two readings fit capture 03 on its own and they differ in what we must
+/// send. `usb/docs/podgo-architecture.md` §6.4 says focus precedes *every*
+/// edit — but 02 and 04 carry no focus at all, so that is too strong. Reading
+/// it the other way, that focus is never needed, is also wrong: 03 focuses
+/// block 10 immediately before editing block 10, and 05 focuses block 3
+/// immediately before changing block 3's model.
+///
+/// What fits all four is that **op 78 accompanies a change of selected block**.
+/// Captures 02 and 04 edit a block the editor had already selected in an
+/// earlier part of the same session — 04 continues editing the very block 03
+/// left focused — so no focus appears in those files.
+///
+/// So [`write_loop`] focuses a block the first time it edits it and whenever
+/// the target changes, and not otherwise. That costs one extra frame per block
+/// switch and matches every capture. Whether the device would accept an edit
+/// with no focus at all is *not* settled by these captures, and sending it is
+/// the side that cannot break.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Cmd {
+    /// Op 30: `{98:slot, 29:ordinary, 26:0, 28:index, 119:value}`.
+    ///
+    /// `ordinary` is key 29 — whether `index` counts in the block's ordinary
+    /// parameters or in its `@`-prefixed ones. It is the same flag the device
+    /// sets when *it* reports a change, and the one field of the write that no
+    /// capture pins down: every outbound edit in captures 03 and 04 is an
+    /// ordinary parameter, so `false` has only ever been seen inbound.
+    Param { slot: u8, index: u8, ordinary: bool, value: WireValue },
+    /// Op 41: `{98:slot, 59:enabled}`.
+    ///
+    /// **Polarity unconfirmed.** Capture 02 is a toggle from a state the
+    /// capture does not record, so key 59 `true` may mean enabled or bypassed.
+    /// We send it to match the preset's own "enabled" sense; if a block comes
+    /// out inverted on hardware, this is the line to flip.
+    Bypass { slot: u8, enabled: bool },
+}
+
+/// A parameter value, already in DSP units and already typed.
+///
+/// The type is chosen by the model data's `valueType`, not guessed from the
+/// number: `7` and `7.0` are different values on the wire.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WireValue {
+    Int(i64),
+    Float(f32),
+    Bool(bool),
+}
+
+impl From<WireValue> for rmpv::Value {
+    fn from(v: WireValue) -> rmpv::Value {
+        match v {
+            WireValue::Int(i) => rmpv::Value::Integer(rmpv::Integer::from(i)),
+            WireValue::Float(f) => rmpv::Value::F32(f),
+            WireValue::Bool(b) => rmpv::Value::Boolean(b),
+        }
+    }
+}
+
+impl Cmd {
+    /// The block this edits.
+    fn slot(&self) -> u8 {
+        match *self {
+            Cmd::Param { slot, .. } | Cmd::Bypass { slot, .. } => slot,
+        }
+    }
+
+    /// Which block this addresses, and how the device names the thing changed.
+    /// Two commands with the same key supersede one another.
+    fn key(&self) -> (u8, u8, bool) {
+        match *self {
+            Cmd::Param { slot, index, ordinary, .. } => (slot, index, ordinary),
+            // No parameter index; `u8::MAX` cannot collide with a real one.
+            Cmd::Bypass { slot, .. } => (slot, u8::MAX, true),
+        }
+    }
+
+    /// The op selector and payload — `usb/docs/podgo-write-protocol.md`.
+    fn encode(&self) -> (u64, rmpv::Value) {
+        use rmpv::Value;
+        let map = |pairs: Vec<(u64, Value)>| {
+            Value::Map(pairs.into_iter().map(|(k, v)| (Value::from(k), v)).collect())
+        };
+        match *self {
+            Cmd::Param { slot, index, ordinary, value } => (
+                30,
+                // Key order is the one POD Go Edit uses, so a frame we build
+                // and a frame from a capture compare byte for byte. Key 26 is
+                // 0 in every captured edit; its meaning is unknown.
+                map(vec![
+                    (98, Value::from(slot)),
+                    (29, Value::from(ordinary)),
+                    (26, Value::from(0)),
+                    (28, Value::from(index)),
+                    (119, value.into()),
+                ]),
+            ),
+            Cmd::Bypass { slot, enabled } => (
+                41,
+                map(vec![(98, Value::from(slot)), (59, Value::from(enabled))]),
+            ),
+        }
+    }
+}
+
 /// Something the device reported of its own accord.
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -243,6 +366,52 @@ pub enum Event {
 
 /// Where events go. Set once, when the connection opens.
 static SINK: Mutex<Option<Arc<dyn Fn(Event) + Send + Sync>>> = Mutex::new(None);
+
+/// Where edits go. Deliberately *not* reached through [`held`]: that lock is
+/// held for the whole of a preset read, and an edit that waited on it would
+/// block the GTK thread for as long as a patch takes to load.
+static EDITS: Mutex<Option<mpsc::Sender<Cmd>>> = Mutex::new(None);
+
+/// Build the frames and log them instead of sending anything.
+///
+/// Every part of the write path runs — encoding, coalescing, the queue — so a
+/// session's worth of edits can be inspected against the captures without the
+/// device changing state.
+fn no_write() -> bool {
+    std::env::var("PODGO_NO_WRITE").is_ok_and(|v| v != "0")
+}
+
+/// Queue an edit. Returns immediately; the device is answered on the writer
+/// thread.
+///
+/// Dropped with a warning when there is no open connection — during the
+/// one-shot read fallback, or before the device is found. Silently dropping an
+/// edit would leave the UI showing a value the pedal never received.
+fn enqueue(cmd: Cmd) {
+    let queued = EDITS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map(|tx| tx.send(cmd).is_ok())
+        .unwrap_or(false);
+    if !queued {
+        warn!("Pod Go: no open connection, dropped {cmd:?}");
+    }
+}
+
+/// Set one parameter of one block in the edit buffer.
+///
+/// `slot` is the device's own block number (the index in the preset's chain),
+/// not a UI position; `index` and `ordinary` are how the device names the
+/// parameter — see [`Cmd::Param`].
+pub fn set_param(slot: u8, index: u8, ordinary: bool, value: WireValue) {
+    enqueue(Cmd::Param { slot, index, ordinary, value });
+}
+
+/// Switch a block on or off in the edit buffer. See [`Cmd::Bypass`] on polarity.
+pub fn set_bypass(slot: u8, enabled: bool) {
+    enqueue(Cmd::Bypass { slot, enabled });
+}
 
 fn emit(event: Event) {
     let sink = SINK.lock().unwrap_or_else(|e| e.into_inner()).clone();
@@ -278,6 +447,13 @@ struct Inner {
     reading: Mutex<Option<mpsc::Sender<Vec<u8>>>>,
     /// Held while writing, so frames from different threads cannot interleave.
     writing: Mutex<()>,
+    /// The transaction id of the last command the device answered, and a way to
+    /// wait for it.
+    ///
+    /// The writer keeps one command outstanding at a time — measured across
+    /// captures 03 and 04, POD Go Edit never has two — so a single number is
+    /// enough: the writer sends txn *n* and waits for this to reach *n*.
+    acked: (Mutex<u32>, std::sync::Condvar),
 }
 
 impl Drop for Inner {
@@ -301,6 +477,10 @@ impl Drop for Device {
         // by the time this returns — anything that opens its own connection
         // (the one-shot fallback) cannot start until it is.
         self.inner.alive.store(false, Ordering::SeqCst);
+        // Drop the sender before joining: the writer is parked on the queue,
+        // and closing it is what wakes it. Edits made from here on are
+        // discarded rather than queued for a connection that is going away.
+        EDITS.lock().unwrap_or_else(|e| e.into_inner()).take();
         for h in self.threads.drain(..) {
             let _ = h.join();
         }
@@ -339,11 +519,19 @@ impl Device {
             alive: AtomicBool::new(true),
             reading: Mutex::new(None),
             writing: Mutex::new(()),
+            acked: (Mutex::new(0), std::sync::Condvar::new()),
         });
+
+        let (edit_tx, edit_rx) = mpsc::channel::<Cmd>();
+        *EDITS.lock().unwrap_or_else(|e| e.into_inner()) = Some(edit_tx);
 
         let reader = {
             let inner = inner.clone();
             std::thread::spawn(move || read_loop(inner))
+        };
+        let writer = {
+            let inner = inner.clone();
+            std::thread::spawn(move || write_loop(inner, edit_rx))
         };
         // Keep a request outstanding on the notification channel, so the
         // device has something to answer the moment a knob moves.
@@ -357,7 +545,7 @@ impl Device {
                 }
             })
         };
-        let device = Device { inner, threads: vec![reader, poller] };
+        let device = Device { inner, threads: vec![reader, writer, poller] };
 
         // The probe that confirmed reporting did this immediately, before any
         // streaming read. Doing it later has been tried and does not report.
@@ -535,6 +723,105 @@ impl Inner {
         self.credit_x80.fetch_add(podgo_session::credit_of(frame), Ordering::SeqCst);
     }
 
+    /// Tell the device which block is selected — op 78, `{98:slot}`.
+    ///
+    /// Sent when the target block changes; see [`Cmd`] for why that and not
+    /// before every edit. Returns whether it was acknowledged, so a focus that
+    /// went nowhere is retried on the next edit rather than being assumed.
+    fn send_focus(&self, slot: u8) -> bool {
+        let txn = self.next_txn();
+        let payload = rmpv::Value::Map(vec![
+            (rmpv::Value::from(98u64), rmpv::Value::from(slot)),
+        ]);
+        let frame = command_frame(
+            Chan::X80,
+            self.next_seq_x80(),
+            0x04,
+            txn,
+            78,
+            payload,
+            Some(self.credit_x80.load(Ordering::SeqCst)),
+        );
+        if no_write() {
+            info!("Pod Go: PODGO_NO_WRITE, not selecting block {slot} (txn {txn})");
+            return true;
+        }
+        debug!("Pod Go: -> select block {slot} (txn {txn})");
+        self.send(&frame) && self.await_ack(txn, ACK_TIMEOUT)
+    }
+
+    /// Send one edit and wait for the device to answer it.
+    ///
+    /// Returns whether it was acknowledged. The wait is not politeness: the
+    /// device answers every command exactly once (93 commands, 91 replies
+    /// across captures 02–06, the two exceptions being op 22, whose answer is a
+    /// stream), and POD Go Edit never has two outstanding. Waiting is also what
+    /// makes coalescing work — while this blocks, newer values for the same
+    /// control replace the queued one instead of piling up behind it.
+    fn send_edit(&self, cmd: &Cmd) -> bool {
+        let (op, payload) = cmd.encode();
+        let txn = self.next_txn();
+        let frame = command_frame(
+            Chan::X80,
+            self.next_seq_x80(),
+            0x04,
+            txn,
+            op,
+            payload,
+            Some(self.credit_x80.load(Ordering::SeqCst)),
+        );
+
+        if no_write() {
+            info!("Pod Go: PODGO_NO_WRITE, not sending {cmd:?} (txn {txn}): {}", hex(&frame));
+            return true;
+        }
+        debug!("Pod Go: -> {cmd:?} (txn {txn})");
+        if !self.send(&frame) {
+            warn!("Pod Go: could not send {cmd:?}");
+            return false;
+        }
+        if self.await_ack(txn, ACK_TIMEOUT) {
+            true
+        } else {
+            // Not fatal on its own. It matters because it is the shape a closed
+            // flow-control window takes: the device stops answering rather than
+            // refusing, so the first unanswered edit is the useful one to see.
+            warn!("Pod Go: {cmd:?} (txn {txn}) went unanswered");
+            false
+        }
+    }
+
+    /// Wait until the device has answered `txn`, or `timeout` passes.
+    fn await_ack(&self, txn: u32, timeout: Duration) -> bool {
+        let (lock, cv) = &self.acked;
+        let mut acked = lock.lock().unwrap_or_else(|e| e.into_inner());
+        let deadline = std::time::Instant::now() + timeout;
+        while *acked < txn {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                return false;
+            }
+            let (next, wait) = cv
+                .wait_timeout(acked, left)
+                .unwrap_or_else(|e| e.into_inner());
+            acked = next;
+            if wait.timed_out() && *acked < txn {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Record that the device answered a command, and wake whoever is waiting.
+    fn note_ack(&self, txn: u32) {
+        let (lock, cv) = &self.acked;
+        let mut acked = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if txn > *acked {
+            *acked = txn;
+        }
+        cv.notify_all();
+    }
+
     /// Acknowledge one x2 notification.
     fn ack_x2(&self, frame: &[u8]) {
         let credit = self.credit_x2.fetch_add(podgo_session::credit_of(frame), Ordering::SeqCst)
@@ -543,6 +830,73 @@ impl Inner {
         ack[9] = self.seq_x2.fetch_add(1, Ordering::SeqCst);
         ack[12..16].copy_from_slice(&credit.to_le_bytes());
         self.send(&ack);
+    }
+}
+
+/// Merge an edit into the queue, superseding any older one for the same thing.
+///
+/// A drag produces a value every few milliseconds and the device answers at its
+/// own pace. Queueing them all would make the UI run ahead of the pedal and
+/// keep sending after the user let go, so a newer value for a control replaces
+/// the one waiting rather than following it. Its **place in the queue is kept**,
+/// so edits to different controls stay in the order they were made.
+///
+/// Bypass collapses the same way: flicking a block off and on again while the
+/// device is busy sends the state it ended on, not both.
+fn merge(pending: &mut Vec<Cmd>, cmd: Cmd) {
+    match pending.iter_mut().find(|c| c.key() == cmd.key()) {
+        Some(slot) => *slot = cmd,
+        None => pending.push(cmd),
+    }
+}
+
+/// Send edits, one at a time, for as long as the connection lives.
+fn write_loop(inner: Arc<Inner>, rx: mpsc::Receiver<Cmd>) {
+    let mut pending: Vec<Cmd> = vec![];
+    // The block the device has been told is selected — see `Cmd`. `None` means
+    // "we have not said", which is also the state after a preset read, since
+    // that replaces the whole edit buffer.
+    let mut focused: Option<u8> = None;
+    debug!("Pod Go: writer started");
+
+    while inner.alive.load(Ordering::SeqCst) {
+        // Park on the queue rather than spin. The timeout is only so that
+        // `alive` going false is noticed by a writer with nothing to do.
+        match rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(cmd) => merge(&mut pending, cmd),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+        // Whatever else arrived while we were busy, before deciding what to send.
+        while let Ok(cmd) = rx.try_recv() {
+            merge(&mut pending, cmd);
+        }
+        if pending.is_empty() {
+            continue;
+        }
+        // A preset read is a conversation of its own on this channel — request,
+        // then a page for every pull. Injecting a command into it would be
+        // answered out of turn and the read would take our acknowledgement for
+        // a page. Edits wait; a read takes tens of milliseconds.
+        if inner.reading.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
+            // A read replaces the edit buffer, so whatever we last said was
+            // selected no longer means anything. Say it again after.
+            focused = None;
+            continue;
+        }
+        let cmd = pending.remove(0);
+        // Tell the device which block we are working on, the way the editor
+        // does when the user selects one. Only on a change: capture 04 drags a
+        // parameter 48 times with no focus in between.
+        if focused != Some(cmd.slot()) && inner.send_focus(cmd.slot()) {
+            focused = Some(cmd.slot());
+        }
+        inner.send_edit(&cmd);
+    }
+    if !pending.is_empty() {
+        debug!("Pod Go: writer stopped with {} edit(s) unsent", pending.len());
+    } else {
+        debug!("Pod Go: writer stopped");
     }
 }
 
@@ -662,6 +1016,10 @@ fn read_loop(inner: Arc<Inner>) {
             drop(reading);
             if let Some((txn, status)) = ack_of(frame) {
                 debug!("Pod Go: reply to command {txn}, status {status}");
+                // Releases the writer's next edit. Status is not checked here:
+                // op 20 answers 1 on a patch load (capture 06) and nothing is
+                // known to mean failure, so a reply is treated as an answer.
+                inner.note_ack(txn);
             }
         }
     }
@@ -1088,6 +1446,70 @@ mod tests {
         assert!(maintained.load(Ordering::SeqCst) > CREDIT_BASE + CREDIT_BASE);
     }
 
+    /// Every frame of a capture, as `(outbound, bytes)`.
+    fn capture(name: &str) -> Vec<(bool, Vec<u8>)> {
+        let path = format!("{}/captures/{name}", env!("CARGO_MANIFEST_DIR"));
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        text.lines()
+            .filter_map(|line| {
+                let mut f = line.split('\t');
+                let (_, ep, hex) = (f.next()?, f.next()?, f.next()?);
+                let hex: String = hex.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+                let b: Vec<u8> = (0..hex.len() / 2)
+                    .map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap())
+                    .collect();
+                (!b.is_empty()).then_some((ep == "0x01", b))
+            })
+            .collect()
+    }
+
+    /// The edits POD Go Edit sent in a capture: every outbound x80 command,
+    /// turned back into the [`Cmd`] that would produce it.
+    ///
+    /// Returns the original frame alongside, so a rebuilt one can be compared
+    /// against the real thing rather than against our own idea of it.
+    fn edits_in(name: &str) -> Vec<(Vec<u8>, u32, u64, Cmd)> {
+        capture(name)
+            .into_iter()
+            .filter(|(out, b)| *out && b.len() > 24 && b[4..8] == [0x80, 0x10, 0xED, 0x03])
+            .filter_map(|(_, frame)| {
+                let dlen = u32::from_le_bytes(frame[20..24].try_into().ok()?) as usize;
+                let mut body = frame.get(24..24 + dlen)?;
+                let v = rmpv::decode::read_value(&mut body).ok()?;
+                let m = v.as_map()?;
+                let get = |src: &Vec<(rmpv::Value, rmpv::Value)>, k: u64| {
+                    src.iter().find(|(key, _)| key.as_u64() == Some(k)).map(|(_, v)| v.clone())
+                };
+                let txn = get(m, 102)?.as_u64()? as u32;
+                let op = get(m, 100)?.as_u64()?;
+                let p = get(m, 101)?;
+                let p = p.as_map()?.clone();
+                let slot = get(&p, 98)?.as_u64()? as u8;
+                let cmd = match op {
+                    41 => Cmd::Bypass { slot, enabled: get(&p, 59)?.as_bool()? },
+                    30 => Cmd::Param {
+                        slot,
+                        index: get(&p, 28)?.as_u64()? as u8,
+                        ordinary: get(&p, 29)?.as_bool()?,
+                        // Taken exactly as it sits on the wire. The editor's own
+                        // knob arithmetic does not produce round numbers — the
+                        // "0.1" below is really 0x3DCCCCD0, not 0.1f32 — and
+                        // rounding it here would test our idea of the value
+                        // rather than the encoder.
+                        value: match get(&p, 119)? {
+                            rmpv::Value::F32(f) => WireValue::Float(f),
+                            rmpv::Value::Boolean(b) => WireValue::Bool(b),
+                            rmpv::Value::Integer(i) => WireValue::Int(i.as_i64()?),
+                            other => panic!("unexpected value type {other:?}"),
+                        },
+                    },
+                    _ => return None,
+                };
+                Some((frame, txn, op, cmd))
+            })
+            .collect()
+    }
+
     /// Every x2 payload frame in a capture, decoded.
     fn events_in(name: &str) -> Vec<Event> {
         let path = format!("{}/captures/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -1217,6 +1639,189 @@ mod tests {
             }
             other => panic!("expected a bypass event, got {other:?}"),
         }
+    }
+
+    /// Rebuild every edit POD Go Edit sent and compare the **whole frame**,
+    /// byte for byte, against the one it actually sent.
+    ///
+    /// This is the test that decides whether the device understands us, and it
+    /// is deliberately unforgiving: the sequence number, the flow-control
+    /// count and the transaction id are taken from the capture so that
+    /// everything else — the length byte, the channel, the command byte, the
+    /// key order inside the MessagePack map, the value's exact type and bits,
+    /// the zero padding — has to match on its own.
+    ///
+    /// Key order is not cosmetic here. `{98, 29, 26, 28, 119}` is the order the
+    /// editor uses, and encoding the same map in a different order produces
+    /// different bytes; a test that compared decoded maps would pass while
+    /// sending something no capture has ever shown the device accepting.
+    #[test]
+    fn captured_edits_re_encode_byte_for_byte() {
+        let captures = [
+            "02-bypass-toggle(pitch wham-3rd block).txt",
+            "03-param-change(Chamber-decay-from-5,1-to-8).txt",
+            "04-param-change-native(Chamber-Predelay-100ms-to-50ms-last-block).txt",
+        ];
+        let mut checked = 0;
+        for name in captures {
+            for (frame, txn, op, cmd) in edits_in(name) {
+                let (encoded_op, payload) = cmd.encode();
+                assert_eq!(encoded_op, op, "{name}: op for {cmd:?}");
+                let credit = u32::from_le_bytes(frame[12..16].try_into().unwrap());
+                let rebuilt = command_frame(
+                    Chan::X80, frame[9], frame[11], txn, encoded_op, payload, Some(credit),
+                );
+                assert_eq!(
+                    hex(&rebuilt), hex(&frame),
+                    "{name}: rebuilt {cmd:?} (txn {txn}) differs from the capture"
+                );
+                checked += 1;
+            }
+        }
+        // 1 bypass + 33 decay steps + 48 predelay steps.
+        assert_eq!(checked, 82, "expected every captured edit to be checked");
+    }
+
+    /// The focus frame we send must be the editor's, byte for byte.
+    ///
+    /// It is built by hand in `send_focus` rather than through [`Cmd`], so it
+    /// is the one outbound frame the edit test above does not cover.
+    #[test]
+    fn the_focus_frame_matches_the_captures() {
+        let mut checked = 0;
+        for name in [
+            "03-param-change(Chamber-decay-from-5,1-to-8).txt",
+            "05-model-change(pitch-wham-to-dual-pitch-in-slot3).txt",
+        ] {
+            for (_, frame) in capture(name)
+                .into_iter()
+                .filter(|(out, b)| *out && b.len() > 24 && b[4..8] == [0x80, 0x10, 0xED, 0x03])
+            {
+                let dlen = u32::from_le_bytes(frame[20..24].try_into().unwrap()) as usize;
+                let Some(mut body) = frame.get(24..24 + dlen) else { continue };
+                let Ok(v) = rmpv::decode::read_value(&mut body) else { continue };
+                let Some(m) = v.as_map() else { continue };
+                let get = |k: u64| m.iter().find(|(key, _)| key.as_u64() == Some(k)).map(|(_, v)| v);
+                if get(100).and_then(|v| v.as_u64()) != Some(78) {
+                    continue;
+                }
+                let txn = get(102).and_then(|v| v.as_u64()).unwrap() as u32;
+                let slot = get(101).and_then(|v| v.as_map())
+                    .and_then(|p| p.iter().find(|(k, _)| k.as_u64() == Some(98)))
+                    .and_then(|(_, v)| v.as_u64()).unwrap() as u8;
+
+                let payload = rmpv::Value::Map(vec![
+                    (rmpv::Value::from(98u64), rmpv::Value::from(slot)),
+                ]);
+                let credit = u32::from_le_bytes(frame[12..16].try_into().unwrap());
+                let rebuilt = command_frame(
+                    Chan::X80, frame[9], frame[11], txn, 78, payload, Some(credit),
+                );
+                assert_eq!(hex(&rebuilt), hex(&frame), "{name}: focus on block {slot}");
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 3, "captures 03 and 05 hold three focus frames between them");
+    }
+
+    /// What the captures actually show about focus, asserted rather than
+    /// described — this is the evidence [`Cmd`]'s focus rule rests on.
+    ///
+    /// `usb/docs/podgo-architecture.md` §6.4 says op 78 precedes *every* edit.
+    /// It does not: captures 02 and 04 contain none. But it is not absent
+    /// either — capture 03 focuses block 10 immediately before editing block
+    /// 10, and 05 focuses block 3 immediately before changing block 3's model.
+    /// The rule that fits all four is that focus accompanies a **change** of
+    /// selected block, which is what the writer implements.
+    #[test]
+    fn focus_accompanies_a_change_of_block_not_every_edit() {
+        let ops = |name: &str| -> Vec<(u64, u8)> {
+            capture(name)
+                .into_iter()
+                .filter(|(out, b)| *out && b.len() > 24 && b[4..8] == [0x80, 0x10, 0xED, 0x03])
+                .filter_map(|(_, frame)| {
+                    let dlen = u32::from_le_bytes(frame[20..24].try_into().ok()?) as usize;
+                    let mut body = frame.get(24..24 + dlen)?;
+                    let v = rmpv::decode::read_value(&mut body).ok()?;
+                    let m = v.as_map()?;
+                    let get = |k: u64| m.iter().find(|(key, _)| key.as_u64() == Some(k));
+                    let op = get(100)?.1.as_u64()?;
+                    let slot = get(101)?.1.as_map()?.iter()
+                        .find(|(k, _)| k.as_u64() == Some(98))?.1.as_u64()? as u8;
+                    Some((op, slot))
+                })
+                .collect()
+        };
+
+        // An edit with no focus anywhere in the capture: the editor had
+        // already selected this block earlier in the session.
+        let bypass = ops("02-bypass-toggle(pitch wham-3rd block).txt");
+        assert_eq!(bypass, vec![(41, 3)], "a bypass, alone");
+
+        // 48 values dragged through one parameter, and not one focus among
+        // them — so focus is emphatically not per-edit.
+        let native = ops("04-param-change-native(Chamber-Predelay-100ms-to-50ms-last-block).txt");
+        assert!(native.iter().all(|(op, _)| *op == 30), "a drag is set-param only: {native:?}");
+        assert_eq!(native.len(), 48);
+
+        // And here it is, immediately before the block it names is edited.
+        let decay = ops("03-param-change(Chamber-decay-from-5,1-to-8).txt");
+        let focused: Vec<u8> = decay.iter().filter(|(op, _)| *op == 78).map(|(_, s)| *s).collect();
+        let edited: Vec<u8> = decay.iter().filter(|(op, _)| *op == 30).map(|(_, s)| *s).collect();
+        assert_eq!(focused, vec![3, 10], "capture 03 selects block 3, then block 10");
+        assert!(edited.iter().all(|s| *s == 10), "and edits block 10 throughout");
+        assert_eq!(edited.len(), 33);
+        assert_eq!(
+            decay.first(), Some(&(78, 3)),
+            "the focus comes first, before any edit"
+        );
+        assert_eq!(
+            decay.iter().position(|(op, _)| *op == 30),
+            Some(2),
+            "and the edits start straight after the second focus"
+        );
+    }
+
+    /// A newer value for a control replaces the one waiting, keeping its place;
+    /// different controls keep the order they were made in.
+    ///
+    /// This is what stops a drag running ahead of the device. Without it the
+    /// queue grows for as long as the user keeps moving and then drains
+    /// afterwards, so the pedal carries on sweeping after they let go.
+    #[test]
+    fn a_newer_edit_replaces_the_one_waiting() {
+        let param = |slot, index, v: f32| Cmd::Param {
+            slot, index, ordinary: true, value: WireValue::Float(v),
+        };
+        let mut pending = vec![];
+
+        merge(&mut pending, param(10, 0, 0.1));
+        merge(&mut pending, Cmd::Bypass { slot: 3, enabled: false });
+        merge(&mut pending, param(10, 4, 0.5));
+        // A drag: same block, same parameter, many values.
+        for v in [0.2, 0.3, 0.4] {
+            merge(&mut pending, param(10, 0, v));
+        }
+        assert_eq!(
+            pending,
+            vec![param(10, 0, 0.4), Cmd::Bypass { slot: 3, enabled: false }, param(10, 4, 0.5)],
+            "the drag collapses in place; the other two keep their order"
+        );
+
+        // A block toggled off and on again while the device is busy sends the
+        // state it ended on, not both.
+        merge(&mut pending, Cmd::Bypass { slot: 3, enabled: true });
+        assert_eq!(pending.len(), 3);
+        assert_eq!(pending[1], Cmd::Bypass { slot: 3, enabled: true });
+
+        // The two lists are numbered separately, so the same index in each is
+        // a different parameter and must not collapse together.
+        let mut pending = vec![];
+        merge(&mut pending, param(7, 0, 0.1));
+        merge(&mut pending, Cmd::Param {
+            slot: 7, index: 0, ordinary: false, value: WireValue::Int(2),
+        });
+        assert_eq!(pending.len(), 2, "an @-parameter is not the ordinary one of the same index");
     }
 
     /// A frame is only ours if it is on x80 and carries a payload. The 16-byte

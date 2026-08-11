@@ -10,7 +10,7 @@ use pod_core::model::AbstractControl;
 use pod_core::store::Store;
 use Origin::{MIDI, UI};
 
-use crate::config::MAX_FX_PARAMS;
+use crate::config::{MAX_FX_PARAMS, PARAM_CARRIER};
 
 pub struct PodGoHandler;
 
@@ -217,13 +217,16 @@ fn sync_block_params(
     }
 }
 
-/// Map a device value onto the 0..=127 controller range its widget uses.
+/// Map a device value onto the controller range its widget uses.
 ///
 /// The device sends each param in **DSP units**, which differ per param — a
 /// percent arrives as 0..1, a frequency as 20..20000 Hz, a level as -60..6 dB,
 /// a note division as an integer index. `ParamDef::dsp_min`/`dsp_max` bound
 /// that range (from Line 6's model data), so normalising against them handles
 /// every kind uniformly instead of only the params that happen to be 0..1.
+///
+/// [`wire_value`] is the inverse and the two are tested as a round trip over
+/// every parameter of every model — change one and change the other.
 pub(crate) fn control_value(def: &crate::model::ParamDef, pv: &crate::preset_parser::ParamValue) -> Option<u16> {
     use crate::model::ParamKind;
     use crate::preset_parser::ParamValue;
@@ -237,11 +240,11 @@ pub(crate) fn control_value(def: &crate::model::ParamDef, pv: &crate::preset_par
 
     match def.kind {
         ParamKind::Bool => Some(match pv {
-            ParamValue::Bool(b) => if *b { 127 } else { 0 },
-            other => if as_f(other)? >= 0.5 { 127 } else { 0 },
+            ParamValue::Bool(b) => if *b { PARAM_CARRIER } else { 0 },
+            other => if as_f(other)? >= 0.5 { PARAM_CARRIER } else { 0 },
         }),
         // A discrete param's wire value is its option index offset by dsp_min;
-        // the combo box is driven by the raw index, not a 0..127 scale.
+        // the combo box is driven by the raw index, not by the carrier scale.
         ParamKind::Enum => {
             let idx = (as_f(pv)? - def.dsp_min).round();
             (idx >= 0.0).then(|| idx.min(def.options.len().saturating_sub(1) as f64) as u16)
@@ -253,8 +256,44 @@ pub(crate) fn control_value(def: &crate::model::ParamDef, pv: &crate::preset_par
             } else {
                 ((as_f(pv)? - def.dsp_min) / span).clamp(0.0, 1.0)
             };
-            Some((norm * 127.0).round() as u16)
+            Some((norm * PARAM_CARRIER as f64).round() as u16)
         }
+    }
+}
+
+/// Turn a controller value into the MessagePack scalar the device expects for
+/// key 119. The inverse of [`control_value`].
+///
+/// Two things decide the result and they are independent:
+///
+/// * **`kind`** picks the arithmetic — an enum's carrier value already *is* its
+///   option index and must never be scaled (the classic failure is sending a
+///   note division of `6` as 600 %), while a numeric one is a position in
+///   `dsp_min..dsp_max`.
+/// * **`wire`** picks the MessagePack type. `7` and `7.0` are different values
+///   on the wire and nothing coerces between them, so a semitone interval must
+///   go out as an integer even though it shares a slider with percents.
+pub(crate) fn wire_value(def: &crate::model::ParamDef, value: u16) -> crate::device::WireValue {
+    use crate::device::WireValue;
+    use crate::model::{ParamKind, WireType};
+
+    let dsp = match def.kind {
+        ParamKind::Bool => return WireValue::Bool(value > PARAM_CARRIER / 2),
+        // Straight back to the device's numbering: label `options[v - dsp_min]`,
+        // so the value for option `v` is `v + dsp_min`.
+        ParamKind::Enum => value as f64 + def.dsp_min,
+        ParamKind::Numeric => {
+            let norm = (value as f64 / PARAM_CARRIER as f64).clamp(0.0, 1.0);
+            def.dsp_min + norm * (def.dsp_max - def.dsp_min)
+        }
+    };
+
+    match def.wire {
+        WireType::Bool => WireValue::Bool(dsp >= 0.5),
+        WireType::Int => WireValue::Int(dsp.round() as i64),
+        // f32, not f64: every captured value is a 4-byte float, and an f64
+        // would be a different MessagePack encoding of the same number.
+        WireType::Float => WireValue::Float(dsp as f32),
     }
 }
 
@@ -272,6 +311,58 @@ fn ui_slot(device: u8) -> Option<usize> {
     m.iter().position(|s| *s == device).map(|i| i + 1)
 }
 
+/// The device's block number for a 1-based UI position — [`ui_slot`] reversed.
+///
+/// Commands address a block by its index in the preset's chain array, which is
+/// what the UI's row was built from. The two have coincided in every preset
+/// seen, but that is a property of those presets, so the mapping is read rather
+/// than assumed. A position the current preset does not fill has no number, and
+/// an edit there has nowhere to go.
+pub(crate) fn device_slot(ui: usize) -> Option<u8> {
+    let m = SLOT_MAP.lock().unwrap_or_else(|e| e.into_inner());
+    m.get(ui.checked_sub(1)?).copied()
+}
+
+/// Blocks whose own writes should not be echoed back into the UI.
+///
+/// A write we send comes back on x2 carrying no mark of its origin — it is
+/// indistinguishable from someone turning the knob on the pedal. Storing it
+/// with `Origin::MIDI` already stops it being sent out again, so there is no
+/// loop; what it does do is arrive *late*. During a drag the device is still
+/// reporting values from several steps ago, and applying those moves the
+/// slider backwards under the user's finger.
+///
+/// So an edit stamps its target here, and a report for that target is ignored
+/// until the stamp goes stale. Reports for anything else — the pedal's own
+/// knobs, another block — are unaffected.
+static RECENTLY_WRITTEN: Mutex<Vec<((u8, u8, bool), std::time::Instant)>> = Mutex::new(Vec::new());
+
+/// How long our own echo is suppressed for. Long enough to cover a drag's
+/// round trip, short enough that letting go of a control and turning the same
+/// knob on the pedal still registers.
+const ECHO_WINDOW: Duration = Duration::from_millis(250);
+
+/// Record that we just wrote this parameter.
+pub(crate) fn mark_written(slot: u8, index: u8, ordinary: bool) {
+    let mut m = RECENTLY_WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    let now = std::time::Instant::now();
+    m.retain(|(_, at)| now.duration_since(*at) < ECHO_WINDOW);
+    let key = (slot, index, ordinary);
+    match m.iter_mut().find(|(k, _)| *k == key) {
+        Some((_, at)) => *at = now,
+        None => m.push((key, now)),
+    }
+}
+
+/// Whether a report for this parameter is our own write coming back.
+fn is_our_echo(slot: u8, index: u8, ordinary: bool) -> bool {
+    let m = RECENTLY_WRITTEN.lock().unwrap_or_else(|e| e.into_inner());
+    let now = std::time::Instant::now();
+    m.iter().any(|(k, at)| {
+        *k == (slot, index, ordinary) && now.duration_since(*at) < ECHO_WINDOW
+    })
+}
+
 /// Apply something the device did to the UI.
 ///
 /// Runs on the connection's reader thread. The value is stored with
@@ -286,6 +377,11 @@ fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device:
         }
         crate::device::Event::Bypass { slot, enabled } => {
             let Some(ui) = ui_slot(slot) else { return };
+            // A bypass has no parameter index; `u8::MAX` reserves a key for it
+            // that no real index can collide with.
+            if is_our_echo(slot, u8::MAX, true) {
+                return;
+            }
             let name = format!("{}_enable", crate::config::slot_prefix(ui));
             // Polarity is taken to match the preset's own "enabled" flag; if a
             // block shows the opposite of the pedal, this is the line.
@@ -304,6 +400,11 @@ fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device:
         return;
     };
     if index as usize >= MAX_FX_PARAMS {
+        return;
+    }
+    // Our own edit, on its way back. Applying it would fight the control the
+    // user is still holding.
+    if is_our_echo(slot, index, ordinary) {
         return;
     }
     let prefix = crate::config::slot_prefix(ui);
@@ -380,6 +481,173 @@ async fn refresh_from_device(
         tokio::time::sleep(Duration::from_millis(400 * attempt as u64)).await;
     }
     warn!("Giving up reading the edit buffer after {why}; the panel will stay stale until Load");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::WireValue;
+    use crate::model::{ParamDef, ParamKind, WireType};
+    use crate::preset_parser::ParamValue;
+
+    /// The DSP values worth checking for one parameter: both ends, and enough
+    /// of the middle to catch a scale that is off rather than merely shifted.
+    fn samples(def: &ParamDef) -> Vec<f64> {
+        match def.kind {
+            ParamKind::Bool => vec![0.0, 1.0],
+            // Every option, since an index is meaningless if any of them
+            // misses. `options[v - dsp_min]`, so option n is value n + dsp_min.
+            ParamKind::Enum => (0..def.options.len()).map(|i| i as f64 + def.dsp_min).collect(),
+            ParamKind::Numeric if def.wire == WireType::Int => {
+                // Every value the parameter can actually take, capped so a
+                // wide counter doesn't dominate the test's runtime.
+                let (lo, hi) = (def.dsp_min.round() as i64, def.dsp_max.round() as i64);
+                let step = ((hi - lo) / 64).max(1);
+                (lo..=hi).step_by(step as usize).map(|v| v as f64).collect()
+            }
+            ParamKind::Numeric => [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]
+                .iter()
+                .map(|t| def.dsp_min + t * (def.dsp_max - def.dsp_min))
+                .collect(),
+        }
+    }
+
+    /// A value the device sent, shown in the UI and sent straight back, must be
+    /// the value it sent.
+    ///
+    /// This is the property that matters and it is checked over **every
+    /// parameter of every model** — 5723 of them — because the failures it
+    /// catches are silent. A percent that round-trips and an enum that does not
+    /// look identical in the UI; the difference only appears on the pedal, as a
+    /// note division that jumps to a different value the moment anything else
+    /// on that block is touched.
+    ///
+    /// It also pins [`control_value`] and [`wire_value`] to each other. They are
+    /// two halves of one mapping and there is no way to change one correctly on
+    /// its own.
+    #[test]
+    fn a_value_read_from_the_device_writes_back_unchanged() {
+        let mut checked = 0usize;
+        for model in crate::config::ALL_MODELS.iter() {
+            for (i, def) in model.params.iter().enumerate() {
+                if def.kind == ParamKind::Enum && def.options.is_empty() {
+                    continue;
+                }
+                for dsp in samples(def) {
+                    let read = match def.wire {
+                        WireType::Bool => ParamValue::Bool(dsp >= 0.5),
+                        // The preset parser coerces every stored integer to a
+                        // float, so this is the shape an enum really arrives in
+                        // — and the shape that used to get scaled as a percent.
+                        _ => ParamValue::Float(dsp as f32),
+                    };
+                    let carrier = control_value(def, &read)
+                        .unwrap_or_else(|| panic!("{}/{} has no carrier value for {dsp}",
+                                                  model.name, def.name));
+                    assert!(
+                        carrier <= PARAM_CARRIER,
+                        "{}/{}: {dsp} mapped to {carrier}, past the carrier",
+                        model.name, def.name
+                    );
+
+                    let back = wire_value(def, carrier);
+                    let ok = match back {
+                        WireValue::Bool(b) => b == (dsp >= 0.5),
+                        WireValue::Int(v) => v as f64 == dsp.round(),
+                        // One carrier step of slack, which is all the round trip
+                        // can lose: the value is quantised to a position and
+                        // read back out of it.
+                        WireValue::Float(v) => {
+                            let step = (def.dsp_max - def.dsp_min).abs() / PARAM_CARRIER as f64;
+                            (v as f64 - dsp).abs() <= step + 1e-4 * dsp.abs().max(1.0)
+                        }
+                    };
+                    assert!(
+                        ok,
+                        "{}/{} (param {i}, {:?}/{:?}, dsp {}..{}): sent {dsp}, \
+                         carried as {carrier}, came back {back:?}",
+                        model.name, def.name, def.kind, def.wire, def.dsp_min, def.dsp_max
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 20_000, "only {checked} values checked; the models did not load");
+    }
+
+    /// A discrete parameter must never leave as a float.
+    ///
+    /// `119` is polymorphic and the device does not coerce: a note division
+    /// sent as `6.0` is not the `6` that means "1/4". The two ways to get this
+    /// wrong are scaling the index like a percent, and sending the right number
+    /// in the wrong MessagePack type — this rules out the second for every
+    /// model at once.
+    #[test]
+    fn discrete_parameters_are_never_sent_as_floats() {
+        for model in crate::config::ALL_MODELS.iter() {
+            for def in model.params.iter() {
+                match def.kind {
+                    ParamKind::Enum => assert_eq!(
+                        def.wire, WireType::Int,
+                        "{}/{} is a dropdown but would be sent as {:?}",
+                        model.name, def.name, def.wire
+                    ),
+                    ParamKind::Bool => assert_eq!(
+                        def.wire, WireType::Bool,
+                        "{}/{} is a checkbox but would be sent as {:?}",
+                        model.name, def.name, def.wire
+                    ),
+                    ParamKind::Numeric => assert_ne!(
+                        def.wire, WireType::Bool,
+                        "{}/{} is a slider but would be sent as a bool",
+                        model.name, def.name
+                    ),
+                }
+                // And the value itself, at both ends of the range.
+                if def.kind == ParamKind::Enum {
+                    for carrier in [0u16, def.options.len().saturating_sub(1) as u16] {
+                        match wire_value(def, carrier) {
+                            WireValue::Int(v) => assert_eq!(
+                                v as f64, carrier as f64 + def.dsp_min,
+                                "{}/{}: option {carrier} must send as its own index",
+                                model.name, def.name
+                            ),
+                            other => panic!("{}/{} sent {other:?}", model.name, def.name),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The two directions of parameter addressing must be exact inverses.
+    ///
+    /// The read path takes `(index, key 29)` from the device and finds our
+    /// parameter; the write path does the reverse. If they disagree, an edit
+    /// silently lands on a different parameter of the same block — and a cab's
+    /// mic type and its Distance, both "index 0" of different lists, are
+    /// exactly the pair that would swap.
+    #[test]
+    fn wire_index_inverts_live_index() {
+        let mut with_specials = 0;
+        for model in crate::config::ALL_MODELS.iter() {
+            let spec = &model.params;
+            if spec.iter().any(|p| p.special) {
+                with_specials += 1;
+            }
+            for i in 0..spec.len() {
+                let (index, ordinary) = spec
+                    .wire_index(i)
+                    .unwrap_or_else(|| panic!("{} param {i} has no device index", model.name));
+                assert_eq!(
+                    spec.live_index(index as usize, ordinary), Some(i),
+                    "{}: param {i} -> ({index}, ordinary={ordinary}) -> somewhere else",
+                    model.name
+                );
+            }
+        }
+        assert!(with_specials > 0, "no model has @-parameters; the test proves nothing");
+    }
 }
 
 /// Push a preset into the controller, position by position.

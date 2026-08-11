@@ -73,6 +73,11 @@ impl Interface for PodGoInterface {
 
         pod_gtk::wire(controller.clone(), &self.objects, callbacks)?;
         wire_chain(controller.clone(), &self.objects, callbacks)?;
+        // Registered after the chain so the UI is fully built before anything
+        // can be sent; the two are independent otherwise — `wire_chain` moves
+        // values between widgets and the controller, this moves them from the
+        // controller to the device.
+        crate::live::wire_writes(controller.clone(), &self.objects, callbacks)?;
         wire_name_change(edit, config, &self.objects, callbacks)?;
 
         Ok(())
@@ -354,12 +359,14 @@ fn build_param_row(
                 let controller = controller.clone(); let name = name.clone(); let upd = updating.clone();
                 check.connect_toggled(move |c| {
                     if upd.get() { return; }
-                    controller.lock().unwrap().set(&name, if c.is_active() { 127 } else { 0 }, StoreOrigin::UI);
+                    let v = if c.is_active() { config::PARAM_CARRIER } else { 0 };
+                    controller.lock().unwrap().set(&name, v, StoreOrigin::UI);
                 });
             }
             row.pack_start(&check, true, true, 0);
             let upd = updating.clone();
-            Rc::new(move |v: u16| { upd.set(true); check.set_active(v > 63); upd.set(false); })
+            let on = config::PARAM_CARRIER / 2;
+            Rc::new(move |v: u16| { upd.set(true); check.set_active(v > on); upd.set(false); })
         }
         ParamKind::Enum if !def.options.is_empty() => {
             let combo = gtk::ComboBoxText::new();
@@ -379,11 +386,19 @@ fn build_param_row(
             Rc::new(move |v: u16| { upd.set(true); combo.set_active(Some(v as u32)); upd.set(false); })
         }
         // Numeric kinds (and enum-without-options) -> slider. The control value
-        // stays 0..=127; the *displayed* number is mapped back into the param's
-        // own units (`def.min`..`def.max`, e.g. Hz, dB, ms) so the readout
-        // matches the device screen rather than showing a raw 0..127.
+        // is a position in `0..=PARAM_CARRIER`; the *displayed* number is mapped
+        // back into the param's own units (`def.min`..`def.max`, e.g. Hz, dB,
+        // ms) so the readout matches the device screen rather than showing the
+        // raw carrier value.
         _ => {
-            let adj = gtk::Adjustment::new(0.0, 0.0, 127.0, 1.0, 8.0, 0.0);
+            let carrier = config::PARAM_CARRIER as f64;
+            // One arrow-key press should move the readout by one digit of the
+            // precision it is shown at, not by an invisible fraction of the
+            // carrier. A `%.0f` percent steps by 1 %, a `%.1f` dB by 0.1 dB.
+            let displayable = ((def.max - def.min).abs() * 10f64.powi(def.decimals as i32))
+                .max(1.0);
+            let step = (carrier / displayable).max(1.0);
+            let adj = gtk::Adjustment::new(0.0, 0.0, carrier, step, (step * 10.0).min(carrier), 0.0);
             let scale = gtk::Scale::new(Orientation::Horizontal, Some(&adj));
             scale.set_hexpand(true);
             scale.set_value_pos(gtk::PositionType::Right);
@@ -394,7 +409,7 @@ fn build_param_row(
                 let unit = def.unit.clone();
                 let off_at = def.off_at;
                 scale.connect_format_value(move |_, v| {
-                    let norm = v / 127.0;
+                    let norm = v / carrier;
                     match off_at {
                         Some(crate::model::Edge::Min) if norm <= 0.0 => return "Off".to_string(),
                         Some(crate::model::Edge::Max) if norm >= 1.0 => return "Off".to_string(),

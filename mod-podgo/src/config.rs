@@ -15,6 +15,42 @@ pub const MAX_FX_PARAMS: usize = 12;
 /// The name shown for a block position the preset doesn't fill.
 pub const EMPTY_MODEL: &str = "(empty)";
 
+/// How many steps a parameter slider has.
+///
+/// Every parameter of every model shares one carrier range, and a value is
+/// carried as its position in it: `0` is the parameter's minimum and
+/// `PARAM_CARRIER` its maximum, whatever units those happen to be in.
+///
+/// This was 127 for as long as the UI only read. Reading down-samples, which
+/// is invisible — a slider one pixel off looks fine. **Writing up-samples, and
+/// that is not invisible**: at 127 steps a 20 Hz–20 kHz control moves in jumps
+/// of about 157 Hz, so most of the values the pedal can hold are unreachable
+/// from the UI.
+///
+/// # Why a flat range rather than a per-parameter grid
+///
+/// `PGControls.json` gives 41 of its 210 controls a piecewise `step`
+/// (`{fine, coarse}` per display range: 1 Hz below 100, 10 Hz to 1000, 100 Hz
+/// above), which reads like a grid the device snaps to. **It is not** — it is
+/// POD Go Edit's knob increment. The pedal's own knob-turn captures land off
+/// it constantly: `captures/params/param-hz-off-to-500` reports 493, 496 and
+/// 499 Hz where the table says 10 Hz steps (77 of its 117 values are off-grid),
+/// and `param-db--60-to-+6` reports −59.933, −59.799, −59.599. So snapping to
+/// `step` would make the UI *coarser* than the hardware, and it also settles
+/// `usb/docs/podgo-architecture.md` §8 question 3: off-grid values are normal.
+///
+/// The alternative worth keeping in mind is a **per-parameter grid sized by
+/// display precision** — one carrier step per distinguishable displayed value,
+/// taken from the format (`%.0f` → 1, `%.1f` → 0.1, piecewise where the format
+/// is). That yields 101 steps for a percent, 661 for a −60…6 dB control, 1001
+/// for cents and 9991 for the widest (`4 OSC Generator` Attack, 10–10000 ms) —
+/// all inside a `u16`. It is exactly as fine as the screen and no finer, so a
+/// slider can never sit between two displayable values. Swapping to it means
+/// replacing the two linear maps below ([`crate::handler::control_value`] and
+/// [`crate::handler::wire_value`]) with an index into that grid; nothing else
+/// in the UI or the write path depends on the carrier being uniform.
+pub const PARAM_CARRIER: u16 = 10000;
+
 /// The models a given block can host, each carrying its numeric wire id so a
 /// preset block resolves by id rather than by name.
 ///
@@ -551,7 +587,15 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         for k in 1..=MAX_FX_PARAMS {
             controls.insert(
                 format!("{prefix}_param{k}"),
-                VirtualRangeControl { format: fmt_percent!(), ..def() }.into(),
+                VirtualRangeControl {
+                    // Not the default 0..127: see [`PARAM_CARRIER`]. The widget
+                    // built for this control reads its range from the model's
+                    // own `ParamDef`, so this only has to be wide enough not to
+                    // misrepresent a value that passes through it.
+                    config: RangeConfig::Long { from: 0, to: PARAM_CARRIER },
+                    format: fmt_percent!(),
+                    ..def()
+                }.into(),
             );
         }
     }
@@ -644,10 +688,13 @@ mod ui_dump {
         let display = |i: usize| {
             let def = spec.param(i).unwrap();
             let v = crate::handler::control_value(def, &room.parameters[i]).unwrap();
-            def.min + (v as f64 / 127.0) * (def.max - def.min)
+            def.min + (v as f64 / PARAM_CARRIER as f64) * (def.max - def.min)
         };
-        assert!((display(2) - 150.0).abs() < 60.0, "low cut {} Hz", display(2));
-        assert!((display(3) - 5000.0).abs() < 400.0, "high cut {} Hz", display(3));
+        // The tolerances used to be ±60 Hz and ±400 Hz: that was the carrier's
+        // own quantisation at 127 steps, not any uncertainty about the values.
+        // At `PARAM_CARRIER` they land on the nose.
+        assert!((display(2) - 150.0).abs() < 2.0, "low cut {} Hz", display(2));
+        assert!((display(3) - 5000.0).abs() < 5.0, "high cut {} Hz", display(3));
         assert!((display(4) - 29.0).abs() < 1.0, "mix {}%", display(4));
         assert!((display(5) - 0.0).abs() < 1.0, "level {} dB", display(5));
         // The trails flag is a checkbox, not a scale.

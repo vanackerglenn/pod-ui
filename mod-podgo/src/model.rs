@@ -20,6 +20,29 @@ pub enum ParamKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge { Min, Max }
 
+/// The MessagePack type a parameter's value travels as.
+///
+/// This is *not* derivable from [`ParamKind`], which is a widget choice: a
+/// slider covers both `Float` (a percent, a frequency) and `Int` (a semitone
+/// interval, a repeat count). Line 6's `valueType` states it outright and it is
+/// the only thing that does, so it is carried through rather than inferred.
+///
+/// It matters only when writing. `7` and `7.0` are different values on the
+/// wire, and the device is not observed to coerce between them — every capture
+/// in `mod-podgo/captures/params/` reports a parameter in exactly one type:
+/// `cents`/`db`/`hz`/`ms`/`percent`/`pan` as float, `interval`/`int`/enums as
+/// integer, and bools as bool.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum WireType {
+    /// `valueType` 0 — a signed integer. Enum indices and native counts.
+    Int,
+    /// `valueType` 1 — an f32 in DSP units.
+    #[default]
+    Float,
+    /// `valueType` 2 — a bool.
+    Bool,
+}
+
 /// A reusable parameter type: the widget plus its display unit/range.
 ///
 /// Only the legacy builder tables in `config.rs` still use these; per-model
@@ -101,6 +124,9 @@ pub struct ParamDef {
     pub decimals: u8,
     pub off_at: Option<Edge>,
     pub options: Vec<String>,
+    /// The MessagePack type to send this parameter's value as. Read only when
+    /// building a write; reads accept whatever arrives.
+    pub wire: WireType,
     /// An `@`-prefixed parameter (`@mic`, `@trails`).
     ///
     /// The device keeps these in a list of their own: a live change carries
@@ -121,6 +147,14 @@ impl ParamDef {
     pub fn from_type(name: String, t: &ParamType) -> Self {
         ParamDef { name, kind: t.kind, unit: t.unit.clone(), min: t.min, max: t.max,
             dsp_min: t.min, dsp_max: t.max, special: false,
+            // The legacy builder tables carry no `valueType`; infer the only
+            // thing that can be inferred from the widget and let `models_db`
+            // set the real one for every model that comes from Line 6's data.
+            wire: match t.kind {
+                ParamKind::Bool => WireType::Bool,
+                ParamKind::Enum => WireType::Int,
+                ParamKind::Numeric => WireType::Float,
+            },
             decimals: t.decimals, off_at: t.off_at, options: t.options.clone() }
     }
 }
@@ -169,6 +203,22 @@ impl ParamSpec {
         let idx = if ordinary { index } else { first_special.checked_add(index)? };
         (idx < self.params.len() && self.params[idx].special != ordinary).then_some(idx)
     }
+    /// The inverse of [`Self::live_index`]: how the device names the parameter
+    /// our spec keeps at `idx`.
+    ///
+    /// Returns `(index, ordinary)` — the number to put in key 28 and the flag
+    /// to put in key 29. Getting this wrong does not fail loudly; it edits a
+    /// *different* parameter of the same block, so a cab's mic type and its
+    /// Distance are exactly the pair that would swap.
+    pub fn wire_index(&self, idx: usize) -> Option<(u8, bool)> {
+        let def = self.params.get(idx)?;
+        if !def.special {
+            return Some((u8::try_from(idx).ok()?, true));
+        }
+        let first_special = self.params.iter().position(|p| p.special)?;
+        Some((u8::try_from(idx.checked_sub(first_special)?).ok()?, false))
+    }
+
     pub fn iter(&self) -> std::slice::Iter<'_, ParamDef> {
         self.params.iter()
     }
