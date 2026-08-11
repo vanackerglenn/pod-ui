@@ -524,6 +524,17 @@ impl Inner {
         self.send(&poll);
     }
 
+    /// Account for x80 payload the device has sent us.
+    ///
+    /// The window is [`podgo_session::CREDIT_BASE`] — 4096 — bytes wide, and a
+    /// single preset is about 4000 of them. Seeding this at the handshake and
+    /// never adding to it therefore buys exactly one read: the second goes over
+    /// the window and the device stops serving x80 altogether. It does not
+    /// refuse, it just says nothing, which reads as a patch that will not load.
+    fn took_x80(&self, frame: &[u8]) {
+        self.credit_x80.fetch_add(podgo_session::credit_of(frame), Ordering::SeqCst);
+    }
+
     /// Acknowledge one x2 notification.
     fn ack_x2(&self, frame: &[u8]) {
         let credit = self.credit_x2.fetch_add(podgo_session::credit_of(frame), Ordering::SeqCst)
@@ -638,6 +649,9 @@ fn read_loop(inner: Arc<Inner>) {
                 None => debug!("Pod Go: an x2 frame did not decode: {}", hex(frame)),
             }
         } else if frame[4..8] == X80_IN {
+            // Before anything else, and before the next page is asked for: the
+            // pull frame restates this count, and a stale one closes the window.
+            inner.took_x80(frame);
             let reading = inner.reading.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(tx) = reading.as_ref() {
                 let _ = tx.send(frame.to_vec());
@@ -840,22 +854,18 @@ pub fn read_preset() -> Option<PresetData> {
         let guard = held();
         match guard.as_ref() {
             Some(dev) => {
-                // Patience before force. Loading a patch takes the device a
-                // moment, during which it does not answer — and the burst of
-                // change reports it sends while doing so is the clue that it
-                // is working, not broken. Retrying beats tearing down a
-                // connection that is about to be fine: the one-shot fallback
-                // used to "fix" this only because it happened a second later.
-                let mut got = dev.read_preset_raw();
-                for attempt in 1..=3 {
-                    if got.is_some() {
-                        break;
-                    }
-                    debug!("Pod Go: the preset did not read, waiting (attempt {attempt}/3)");
-                    std::thread::sleep(Duration::from_millis(400 * attempt));
-                    got = dev.read_preset_raw();
-                }
-                got
+                // One retry, not a staircase of them. A read that works answers
+                // in tens of milliseconds; a read that fails twice in a row is
+                // not going to be fixed by waiting longer, and the caller
+                // retries too — the two loops multiplied out to twelve reads
+                // and the better part of a minute before anything reached the
+                // UI. If this ever needs patience again, the cause is a closed
+                // flow-control window, not a slow device.
+                dev.read_preset_raw().or_else(|| {
+                    debug!("Pod Go: the preset did not read, retrying once");
+                    std::thread::sleep(Duration::from_millis(150));
+                    dev.read_preset_raw()
+                })
             }
             None => None,
         }
@@ -1025,6 +1035,57 @@ mod tests {
         assert_eq!(data.len(), 15 * 256 + 100);
         // The 40-byte frame after the stream is another command's reply.
         assert!(data.len() % 4 == 0);
+    }
+
+    /// One preset does not fit in the window, so the count **must** climb.
+    ///
+    /// This is the whole of the "first patch loads, every one after it hangs"
+    /// bug. `credit_x80` was seeded from the handshake and never added to,
+    /// which works for as long as the device's window lasts — and a single
+    /// preset is about 4000 bytes against a 4096-byte window, so it lasts for
+    /// exactly one read. The second goes over, the device stops serving x80
+    /// without saying so, and the read times out.
+    #[test]
+    fn one_preset_read_all_but_exhausts_the_x80_window() {
+        use crate::podgo_session::{credit_of, CREDIT_BASE};
+
+        let path = format!(
+            "{}/captures/06-load-patch-01B-(A30 Fawn Brt).txt",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        let taken: u32 = text
+            .lines()
+            .filter_map(|line| {
+                let mut f = line.split('\t');
+                let (_, ep, hex) = (f.next()?, f.next()?, f.next()?);
+                if ep == "0x01" {
+                    return None; // outbound
+                }
+                let hex: String = hex.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+                let b: Vec<u8> = (0..hex.len() / 2)
+                    .map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap())
+                    .collect();
+                (b.len() >= 16 && b[4..8] == X80_IN).then(|| credit_of(&b))
+            })
+            .sum();
+
+        // Comfortably inside the window once, and nowhere near it twice.
+        assert!(taken < CREDIT_BASE, "one read took {taken}, window is {CREDIT_BASE}");
+        assert!(
+            taken * 2 > CREDIT_BASE,
+            "two reads must overrun the window, or this bug could not happen"
+        );
+
+        // So a counter that never moves reports a full window on the second
+        // read, and one that is maintained reports what was actually taken.
+        let stale = AtomicU32::new(CREDIT_BASE);
+        let maintained = AtomicU32::new(CREDIT_BASE);
+        for _ in 0..2 {
+            maintained.fetch_add(taken, Ordering::SeqCst);
+        }
+        assert_eq!(stale.load(Ordering::SeqCst), CREDIT_BASE);
+        assert!(maintained.load(Ordering::SeqCst) > CREDIT_BASE + CREDIT_BASE);
     }
 
     /// Every x2 payload frame in a capture, decoded.

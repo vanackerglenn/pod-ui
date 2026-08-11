@@ -361,7 +361,7 @@ fn num_program(p: &Program) -> Option<usize> {
 async fn refresh_from_device(
     controller: Arc<Mutex<Controller>>, delay: Duration, why: &'static str,
 ) {
-    const ATTEMPTS: u32 = 4;
+    const ATTEMPTS: u32 = 2;
 
     if !delay.is_zero() {
         tokio::time::sleep(delay).await;
