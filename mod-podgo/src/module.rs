@@ -191,6 +191,8 @@ fn wire_chain(
     }
     row.show_all();
 
+    wire_reordering(&controller, &buttons, &panel);
+
     // Clicking a block focuses it. `show_block` does the actual repointing.
     for (prefix, button) in buttons.borrow().iter() {
         let (prefix, controller) = (prefix.clone(), controller.clone());
@@ -351,6 +353,66 @@ fn wire_chain(
     }
 
     Ok(())
+}
+
+/// The drag payload: one byte, the source position. Private to this process —
+/// nothing outside pod-ui has any use for a POD Go chain position.
+const DRAG_TARGET: &str = "PODGO_BLOCK";
+
+/// Let a chain button be dragged onto another position to move that block.
+///
+/// Insert-with-shift, the gesture POD Go Edit uses: drop position 3 onto
+/// position 7 and the block lands at 7 while 4..7 each shift one place left.
+///
+/// Every button is both a drag source and a drop target. `drag_source_set`
+/// leaves clicking alone — GTK begins a drag only past the drag threshold — so
+/// selecting a block still works exactly as it did.
+fn wire_reordering(
+    controller: &Arc<Mutex<Controller>>,
+    buttons: &Rc<RefCell<Vec<(String, gtk::ToggleButton)>>>,
+    panel: &Panel,
+) {
+    let targets = [gtk::TargetEntry::new(DRAG_TARGET, gtk::TargetFlags::SAME_APP, 0)];
+
+    for (index, (_, button)) in buttons.borrow().iter().enumerate() {
+        let position = index + 1;
+        button.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
+        button.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
+
+        button.connect_drag_data_get(move |_, _, selection, _, _| {
+            selection.set(&selection.target(), 8, &[position as u8]);
+        });
+
+        let (controller, buttons, panel) = (controller.clone(), buttons.clone(), panel.clone());
+        button.connect_drag_data_received(move |_, _, _, _, selection, _, _| {
+            let Some(&from) = selection.data().first() else { return };
+            let from = from as usize;
+
+            // The move is a plain controller edit, so the lock is held for it
+            // and nothing else. The callbacks it triggers are queued on the
+            // store's channel and run once it is released, which is what lets
+            // the panel be re-pointed below without deadlocking.
+            let moved = {
+                let mut ctrl = controller.lock().unwrap();
+                crate::handler::move_position(&mut ctrl, from, position)
+            };
+            let Some(at) = moved else { return };
+
+            // Focus follows the block to its new position, as it does in POD Go
+            // Edit. Activating the button runs the ordinary selection path;
+            // when it is already the selected one that path is a no-op, so the
+            // panel is re-pointed by hand instead.
+            let target = buttons.borrow().get(at - 1).map(|(p, b)| (p.clone(), b.clone()));
+            let Some((prefix, button)) = target else { return };
+            if button.is_active() {
+                *panel.focus.borrow_mut() = prefix.clone();
+                let ctrl = controller.lock().unwrap();
+                show_block(&prefix, &ctrl, &controller, &panel);
+            } else {
+                button.set_active(true);
+            }
+        });
+    }
 }
 
 /// Point the shared panel at `prefix`: show the block's category and model,

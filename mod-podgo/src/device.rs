@@ -470,6 +470,27 @@ pub fn set_model(slot: u8, model_id: u64) {
     enqueue(Cmd::Model { slot, model_id });
 }
 
+/// Move a block to a different position in the chain — **not implemented**.
+///
+/// No capture contains a reorder, and the opcode is not recoverable offline:
+/// the eleven captures between them use ops 1, 13, 20, 22, 23, 24, 30, 33, 40,
+/// 41, 76, 78, 99 and 254, none of which moves anything, and none of Line 6's
+/// data files names an RPC method. Guessing is a poor trade — the op table
+/// demonstrably holds members never seen in an edit context (99 and 254 both
+/// appear in the connect handshake), so a wrong guess could reach flash rather
+/// than the edit buffer.
+///
+/// So this logs and sends nothing, and the UI reorders on its own until a
+/// capture of POD Go Edit dragging a block settles the format. See
+/// `docs/superpowers/specs/2026-08-11-podgo-reorder-design.md`.
+///
+/// When it lands, this becomes a `Cmd` variant next to [`Cmd::Model`] plus a
+/// `handler::request_resync` — the same shape as a model change, which already
+/// treats the device's own re-read as the referee.
+pub fn move_block(from: u8, to: u8) {
+    warn!("Pod Go: move block {from} -> {to}: no device op known yet, reordered in the UI only");
+}
+
 fn emit(event: Event) {
     let sink = SINK.lock().unwrap_or_else(|e| e.into_inner()).clone();
     if let Some(sink) = sink {

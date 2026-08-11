@@ -330,6 +330,100 @@ pub(crate) fn device_slot(ui: usize) -> Option<u8> {
     m.get(ui.checked_sub(1)?).copied()
 }
 
+/// Everything the UI holds about one chain position: its model, its enable, and
+/// its parameters. The order is arbitrary but fixed — only
+/// [`read_position`]/[`write_position`] ever see it.
+const POSITION_CONTROLS: usize = MAX_FX_PARAMS + 2;
+
+fn position_control(prefix: &str, i: usize) -> String {
+    match i {
+        0 => format!("{prefix}_select"),
+        1 => format!("{prefix}_enable"),
+        _ => format!("{prefix}_param{}", i - 1),
+    }
+}
+
+fn read_position(ctrl: &Controller, pos: usize) -> Vec<u16> {
+    let prefix = crate::config::slot_prefix(pos);
+    (0..POSITION_CONTROLS)
+        .map(|i| ctrl.get(&position_control(&prefix, i)).unwrap_or(0))
+        .collect()
+}
+
+fn write_position(ctrl: &mut Controller, pos: usize, values: &[u16]) {
+    let prefix = crate::config::slot_prefix(pos);
+    for (i, v) in values.iter().enumerate() {
+        // `Origin::NONE` — the origin a preset load uses. It is what keeps a
+        // reorder off the wire: `live::wire_writes` fires only on `Origin::UI`,
+        // so re-pointing a span of positions does not send a parameter edit per
+        // control. `live::write_model` leans on the same thing.
+        ctrl.set(&position_control(&prefix, i), *v, pod_core::store::Origin::NONE);
+    }
+}
+
+/// The highest position that holds a model, or 0 when the chain is empty.
+///
+/// Read from the controller rather than from [`SLOT_MAP`] so that reordering
+/// works with no device connected. Index 0 of `ALL_MODELS` is the `(empty)`
+/// entry, so "holds a model" is exactly "select is not 0".
+pub(crate) fn last_occupied_position(ctrl: &Controller) -> usize {
+    (1..=crate::config::CHAIN_SLOTS)
+        .rev()
+        .find(|p| {
+            ctrl.get(&format!("{}_select", crate::config::slot_prefix(*p))).unwrap_or(0) != 0
+        })
+        .unwrap_or(0)
+}
+
+/// Move the block at position `from` to position `to`, shifting the positions
+/// in between — the gesture POD Go Edit's drag performs.
+///
+/// Returns the position the block ended up at, or `None` if nothing moved.
+///
+/// # Why `SLOT_MAP` is not permuted alongside the values
+///
+/// [`device_slot`] maps a UI position to the block's index in the preset's chain
+/// array, and that array is *positional* — its index is the running order. So a
+/// move on the device renumbers the array, and UI position *i* still names chain
+/// index *i* afterwards. Permuting the map here as well would apply the move
+/// twice and send every later parameter edit to a neighbouring block, with
+/// nothing to show for it in the UI. The re-read that follows a confirmed move
+/// rebuilds the map from the preset in any case.
+pub(crate) fn move_position(ctrl: &mut Controller, from: usize, to: usize) -> Option<usize> {
+    let last = last_occupied_position(ctrl);
+    if from == 0 || from > last {
+        debug!("Pod Go: position {from} holds no block, not moving it");
+        return None;
+    }
+    // Clamping rather than refusing: a drop past the end of a short chain is a
+    // clear enough intention ("put it last"), and letting it through as-is would
+    // leave a gap in the middle of the chain — the failure shape this format
+    // invites, see `usb/docs/podgo-preset-format.md`.
+    let to = to.clamp(1, last);
+    if from == to {
+        return None;
+    }
+
+    // Only the span between the two ends can move; everything outside it keeps
+    // both its position and its values.
+    let (lo, hi) = (from.min(to), from.max(to));
+    let mut span: Vec<Vec<u16>> = (lo..=hi).map(|p| read_position(ctrl, p)).collect();
+    let block = span.remove(from - lo);
+    span.insert(to - lo, block);
+    for (i, values) in span.iter().enumerate() {
+        write_position(ctrl, lo + i, values);
+    }
+
+    match (device_slot(from), device_slot(to)) {
+        (Some(df), Some(dt)) => {
+            info!("Pod Go: move position {from} -> {to} (block {df} -> {dt})");
+            crate::device::move_block(df, dt);
+        }
+        _ => info!("Pod Go: move position {from} -> {to}, which is not in the current chain"),
+    }
+    Some(to)
+}
+
 /// Blocks whose own writes should not be echoed back into the UI.
 ///
 /// A write we send comes back on x2 carrying no mark of its origin — it is
@@ -750,6 +844,190 @@ mod tests {
             }
         }
         assert!(with_specials > 0, "no model has @-parameters; the test proves nothing");
+    }
+
+    // --- reordering --------------------------------------------------------
+
+    /// A controller holding the captured patch, and the ten positions' models.
+    fn loaded() -> Arc<Mutex<Controller>> {
+        let controller = Arc::new(Mutex::new(Controller::new(crate::config::CONFIG.controls.clone())));
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        sync_controller_from_preset(&controller, &preset);
+        controller
+    }
+
+    fn models(ctrl: &Controller) -> Vec<&'static str> {
+        (1..=crate::config::CHAIN_SLOTS)
+            .map(|p| {
+                let i = ctrl.get(&format!("{}_select", crate::config::slot_prefix(p))).unwrap();
+                crate::config::ALL_MODELS[i as usize].name.as_str()
+            })
+            .collect()
+    }
+
+    /// Every control of every position, named explicitly rather than through
+    /// [`read_position`] — a test that reads the state through the same helper
+    /// the code under test writes it with cannot see that helper miss a control.
+    fn everything(ctrl: &Controller) -> Vec<(String, u16)> {
+        let mut all = vec![];
+        for p in 1..=crate::config::CHAIN_SLOTS {
+            let prefix = crate::config::slot_prefix(p);
+            let mut names = vec![format!("{prefix}_select"), format!("{prefix}_enable")];
+            names.extend((1..=MAX_FX_PARAMS).map(|k| format!("{prefix}_param{k}")));
+            for name in names {
+                let v = ctrl.get(&name).unwrap_or_else(|| panic!("no control {name}"));
+                all.push((name, v));
+            }
+        }
+        all
+    }
+
+    /// One position's controls, by name, in the same independent way.
+    fn position(ctrl: &Controller, p: usize) -> Vec<(String, u16)> {
+        let prefix = crate::config::slot_prefix(p);
+        everything(ctrl)
+            .into_iter()
+            .filter(|(name, _)| name.starts_with(&format!("{prefix}_")))
+            .map(|(name, v)| (name[prefix.len()..].to_string(), v))
+            .collect()
+    }
+
+    /// The captured patch fills all ten positions, so it exercises the whole row.
+    const LOADED_ORDER: [&str; 10] = [
+        "Fassel", "Volume", "FX Loop 1", "Top Secret OD", "A30 Fawn Brt",
+        "2x12 Blue Bell", "LA Studio Comp", "Transistor Tape", "Room",
+        "Parametric [STATIC]",
+    ];
+
+    /// Dropping 3 onto 7 puts the block at 7 and shifts 4..7 one place left.
+    #[test]
+    fn moving_a_block_later_shifts_the_span_left() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+        assert_eq!(models(&ctrl), LOADED_ORDER, "fixture");
+
+        assert_eq!(move_position(&mut ctrl, 3, 7), Some(7));
+        assert_eq!(
+            models(&ctrl),
+            [
+                "Fassel", "Volume", "Top Secret OD", "A30 Fawn Brt", "2x12 Blue Bell",
+                "LA Studio Comp", "FX Loop 1", "Transistor Tape", "Room",
+                "Parametric [STATIC]",
+            ]
+        );
+    }
+
+    /// And the other way, which shifts the span the other way — a separate case
+    /// because `remove`/`insert` move the intervening entries in the opposite
+    /// direction, and an off-by-one there is invisible in the forward test.
+    #[test]
+    fn moving_a_block_earlier_shifts_the_span_right() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+
+        assert_eq!(move_position(&mut ctrl, 7, 3), Some(3));
+        assert_eq!(
+            models(&ctrl),
+            [
+                "Fassel", "Volume", "LA Studio Comp", "FX Loop 1", "Top Secret OD",
+                "A30 Fawn Brt", "2x12 Blue Bell", "Transistor Tape", "Room",
+                "Parametric [STATIC]",
+            ]
+        );
+    }
+
+    /// A block's values travel with it. Moving only the model selector would
+    /// pass both tests above and leave every block wearing its neighbour's
+    /// settings.
+    #[test]
+    fn a_moved_block_takes_its_values_with_it() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+        let before = position(&ctrl, 8);
+        // Transistor Tape has eleven values; a block whose parameters were all
+        // zero would make this test vacuous.
+        assert!(
+            before.iter().filter(|(n, _)| n.starts_with("_param")).any(|(_, v)| *v != 0),
+            "the block has no values to carry",
+        );
+
+        move_position(&mut ctrl, 8, 2);
+        assert_eq!(position(&ctrl, 2), before);
+    }
+
+    /// There and back leaves the chain exactly as it was — every position, every
+    /// control, not just the models.
+    #[test]
+    fn a_move_and_its_reverse_restore_the_chain() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+        let before = everything(&ctrl);
+
+        move_position(&mut ctrl, 3, 7);
+        assert_ne!(everything(&ctrl), before, "the move did nothing");
+        move_position(&mut ctrl, 7, 3);
+        assert_eq!(everything(&ctrl), before);
+    }
+
+    /// The map from UI position to device block number must survive a move
+    /// untouched: the chain array is positional, so the device renumbers it
+    /// itself and position *i* still names block *i*. Permuting it here as well
+    /// would double-apply the move and misaddress every later edit — silently,
+    /// since the UI would look right.
+    #[test]
+    fn a_move_leaves_the_device_slot_map_alone() {
+        let controller = loaded();
+        let before: Vec<Option<u8>> =
+            (1..=crate::config::CHAIN_SLOTS).map(device_slot).collect();
+        assert!(before.iter().all(|s| s.is_some()), "the fixture fills every position");
+
+        move_position(&mut controller.lock().unwrap(), 3, 7);
+
+        let after: Vec<Option<u8>> = (1..=crate::config::CHAIN_SLOTS).map(device_slot).collect();
+        assert_eq!(after, before);
+    }
+
+    /// Moves that cannot mean anything change nothing.
+    #[test]
+    fn degenerate_moves_are_refused() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+        let before = everything(&ctrl);
+
+        assert_eq!(move_position(&mut ctrl, 4, 4), None, "a block onto itself");
+        assert_eq!(move_position(&mut ctrl, 0, 4), None, "no position 0");
+        assert_eq!(
+            move_position(&mut ctrl, crate::config::CHAIN_SLOTS + 1, 4), None,
+            "past the end of the row",
+        );
+        assert_eq!(everything(&ctrl), before);
+    }
+
+    /// With a short chain, a drop past the last block lands on the last block
+    /// rather than leaving a hole in the middle — the failure shape this format
+    /// invites (`usb/docs/podgo-preset-format.md`).
+    #[test]
+    fn a_drop_past_the_end_of_a_short_chain_clamps() {
+        let controller = loaded();
+        let mut ctrl = controller.lock().unwrap();
+        // Empty the last three positions, leaving a seven-block chain.
+        for p in 8..=crate::config::CHAIN_SLOTS {
+            write_position(&mut ctrl, p, &vec![0; POSITION_CONTROLS]);
+        }
+        assert_eq!(last_occupied_position(&ctrl), 7);
+
+        assert_eq!(move_position(&mut ctrl, 2, 10), Some(7), "clamped to the last block");
+        assert_eq!(
+            models(&ctrl)[..8],
+            [
+                "Fassel", "FX Loop 1", "Top Secret OD", "A30 Fawn Brt", "2x12 Blue Bell",
+                "LA Studio Comp", "Volume", "(empty)",
+            ],
+            "no gap opens between the blocks",
+        );
+        // And dragging one of the empty positions moves nothing.
+        assert_eq!(move_position(&mut ctrl, 9, 3), None);
     }
 }
 
