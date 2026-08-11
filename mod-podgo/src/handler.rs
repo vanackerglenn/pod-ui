@@ -32,9 +32,12 @@ impl Handler for PodGoHandler {
             } else {
                 warn!("No cached preset names available");
             }
+            // Open the connection that stays open, *after* the name fetch:
+            // both claim USB interface 0, and from here on this owns it.
+            let _ = tokio::task::spawn_blocking(crate::device::connect).await;
+
             // Show whatever the device already has loaded, rather than leaving
-            // the panel blank until the user presses Load. Sequential with the
-            // name fetch above: both claim the same USB interface.
+            // the panel blank until the user presses Load.
             refresh_from_device(controller, Duration::ZERO, "connect").await;
         });
     }
@@ -283,11 +286,10 @@ async fn refresh_from_device(
         tokio::time::sleep(delay).await;
     }
     for attempt in 1..=ATTEMPTS {
-        let preset =
-            tokio::task::spawn_blocking(crate::current_preset::read_current_preset_inprocess)
-                .await
-                .ok()
-                .flatten();
+        let preset = tokio::task::spawn_blocking(crate::device::read_preset)
+            .await
+            .ok()
+            .flatten();
         if let Some(preset) = preset {
             info!("Read edit buffer after {why} (attempt {attempt})");
             sync_controller_from_preset(&controller, &preset);

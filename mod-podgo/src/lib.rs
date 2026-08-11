@@ -1,5 +1,6 @@
 mod builders;
 mod config;
+mod device;
 mod handler;
 mod model;
 mod models_db;
