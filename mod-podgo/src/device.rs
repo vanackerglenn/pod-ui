@@ -275,6 +275,22 @@ pub enum Cmd {
     /// We send it to match the preset's own "enabled" sense; if a block comes
     /// out inverted on hardware, this is the line to flip.
     Bypass { slot: u8, enabled: bool },
+    /// Op 40: `{98:slot, 100:{23:false, 25:model_id, 26:-1}}` — put a different
+    /// model in this block.
+    ///
+    /// The nested key **100 is not the op** (the op is the outer one, 40) and
+    /// **25 is the model id** — the same field a preset block carries it in.
+    /// Reading the capture the other way round, as the doc once did, would send
+    /// an amp's id as an opcode.
+    ///
+    /// `23:false` and `26:-1` are sentinels the device echoes back untouched;
+    /// capture 05 is the only sample of either.
+    ///
+    /// The device answers this one with the block's **whole new state**, the
+    /// defaults included — every parameter is replaced. Nothing here tries to
+    /// use that: [`crate::handler`] re-reads the preset instead, which is the
+    /// same path a model change made on the pedal takes.
+    Model { slot: u8, model_id: u64 },
 }
 
 /// A parameter value, already in DSP units and already typed.
@@ -302,7 +318,7 @@ impl Cmd {
     /// The block this edits.
     fn slot(&self) -> u8 {
         match *self {
-            Cmd::Param { slot, .. } | Cmd::Bypass { slot, .. } => slot,
+            Cmd::Param { slot, .. } | Cmd::Bypass { slot, .. } | Cmd::Model { slot, .. } => slot,
         }
     }
 
@@ -313,6 +329,10 @@ impl Cmd {
             Cmd::Param { slot, index, ordinary, .. } => (slot, index, ordinary),
             // No parameter index; `u8::MAX` cannot collide with a real one.
             Cmd::Bypass { slot, .. } => (slot, u8::MAX, true),
+            // Nor can this. Spinning through models supersedes, but a model
+            // change must never collapse with the bypass of the same block:
+            // they are different edits and both have to land.
+            Cmd::Model { slot, .. } => (slot, u8::MAX - 1, true),
         }
     }
 
@@ -340,6 +360,17 @@ impl Cmd {
                 41,
                 map(vec![(98, Value::from(slot)), (59, Value::from(enabled))]),
             ),
+            Cmd::Model { slot, model_id } => (
+                40,
+                map(vec![
+                    (98, Value::from(slot)),
+                    (100, map(vec![
+                        (23, Value::from(false)),
+                        (25, Value::from(model_id)),
+                        (26, Value::from(-1)),
+                    ])),
+                ]),
+            ),
         }
     }
 }
@@ -359,6 +390,23 @@ pub enum Event {
     /// `{105:49, 106:{…, 106:{98:3, 59:true}}}`. Looking only for 119 made
     /// every one of these fall through as undecodable.
     Bypass { slot: u8, enabled: bool },
+    /// A block now holds a different model.
+    ///
+    /// Op 49 again, but naming a block and *nothing else*:
+    /// `{105:49, 106:{…, 106:{98:3}}}`. Capture 05 sends `op 40` and then
+    /// receives exactly that, so op 49 is the device's "this block changed"
+    /// report and its payload says what about it changed — key 59 for a bypass,
+    /// key 119 for a parameter, and neither when it is the model itself.
+    ///
+    /// The report does **not** carry the new model id, and nothing else on the
+    /// wire does either, so this is a prompt to re-read the preset rather than a
+    /// value to apply.
+    ///
+    /// > Capture 05 is host-initiated; a model changed on the pedal is not
+    /// > captured. Parameter changes are reported identically whoever makes
+    /// > them (compare captures 03/04 with 09), which is the reason to expect
+    /// > the same here — not a proof of it.
+    BlockChanged { slot: u8 },
     /// Something else changed. We cannot decode it, and guessing is worse than
     /// re-reading the patch.
     Other { op: i64 },
@@ -411,6 +459,15 @@ pub fn set_param(slot: u8, index: u8, ordinary: bool, value: WireValue) {
 /// Switch a block on or off in the edit buffer. See [`Cmd::Bypass`] on polarity.
 pub fn set_bypass(slot: u8, enabled: bool) {
     enqueue(Cmd::Bypass { slot, enabled });
+}
+
+/// Put a different model in a block of the edit buffer.
+///
+/// `model_id` is the wire id — `PodGo.sym`'s index for the model, the same
+/// number a preset block carries. Every parameter of the block is replaced by
+/// the new model's defaults, so the caller must resync; see [`Cmd::Model`].
+pub fn set_model(slot: u8, model_id: u64) {
+    enqueue(Cmd::Model { slot, model_id });
 }
 
 fn emit(event: Event) {
@@ -891,7 +948,15 @@ fn write_loop(inner: Arc<Inner>, rx: mpsc::Receiver<Cmd>) {
         if focused != Some(cmd.slot()) && inner.send_focus(cmd.slot()) {
             focused = Some(cmd.slot());
         }
-        inner.send_edit(&cmd);
+        let acked = inner.send_edit(&cmd);
+        // A model change replaces the block wholesale, and what it was replaced
+        // with is only knowable by asking. The device reports it on x2 too, so
+        // this is belt and braces — but the two requests coalesce into one read
+        // downstream, and a report that never arrives would otherwise leave the
+        // panel showing the previous model's parameters.
+        if let (Cmd::Model { slot, .. }, true) = (cmd, acked) {
+            emit(Event::BlockChanged { slot });
+        }
     }
     if !pending.is_empty() {
         debug!("Pod Go: writer stopped with {} edit(s) unsent", pending.len());
@@ -1040,6 +1105,16 @@ fn decode_event(frame: &[u8]) -> Option<Event> {
         .unwrap_or(-1);
 
     let Some(inner) = find_param_map(&value) else {
+        // Op 49 is "this block changed", and its payload says what about it:
+        // key 59 for a bypass, key 119 for a parameter — both taken above — and
+        // *neither* when the block's model was replaced (capture 05). Keyed on
+        // the op and not on the shape alone, because op 39 (block selected)
+        // names a block the same way and is not a change at all.
+        if op == 49 {
+            if let Some(slot) = find_slot(&value) {
+                return Some(Event::BlockChanged { slot });
+            }
+        }
         return Some(Event::Other { op });
     };
     let get = |k: u64| inner.iter().find(|(key, _)| key.as_u64() == Some(k)).map(|(_, v)| v);
@@ -1108,6 +1183,19 @@ fn find_param_map(v: &rmpv::Value) -> Option<&Vec<(rmpv::Value, rmpv::Value)>> {
         return Some(m);
     }
     m.iter().find_map(|(_, val)| find_param_map(val))
+}
+
+/// The block a payload names, however deeply it is wrapped.
+///
+/// Used only for op 49, where the absence of anything *but* a block number is
+/// the message. [`find_param_map`] has already had its go by then, so a payload
+/// that carries a value or a bypass flag never reaches this.
+fn find_slot(v: &rmpv::Value) -> Option<u8> {
+    let m = v.as_map()?;
+    if let Some((_, slot)) = m.iter().find(|(k, _)| k.as_u64() == Some(98)) {
+        return slot.as_u64().map(|s| s as u8);
+    }
+    m.iter().find_map(|(_, val)| find_slot(val))
 }
 
 /// The one connection, for as long as the program runs.
@@ -1503,6 +1591,15 @@ mod tests {
                             other => panic!("unexpected value type {other:?}"),
                         },
                     },
+                    // The model id is the *nested* key 25, not the op and not a
+                    // top-level field. Pulling it from where the capture really
+                    // puts it is half of what this test proves.
+                    40 => Cmd::Model {
+                        slot,
+                        model_id: get(&p, 100)?.as_map()
+                            .and_then(|n| n.iter().find(|(k, _)| k.as_u64() == Some(25)))
+                            .and_then(|(_, v)| v.as_u64())?,
+                    },
                     _ => return None,
                 };
                 Some((frame, txn, op, cmd))
@@ -1661,6 +1758,7 @@ mod tests {
             "02-bypass-toggle(pitch wham-3rd block).txt",
             "03-param-change(Chamber-decay-from-5,1-to-8).txt",
             "04-param-change-native(Chamber-Predelay-100ms-to-50ms-last-block).txt",
+            "05-model-change(pitch-wham-to-dual-pitch-in-slot3).txt",
         ];
         let mut checked = 0;
         for name in captures {
@@ -1678,8 +1776,63 @@ mod tests {
                 checked += 1;
             }
         }
-        // 1 bypass + 33 decay steps + 48 predelay steps.
-        assert_eq!(checked, 82, "expected every captured edit to be checked");
+        // 1 bypass + 33 decay steps + 48 predelay steps + 1 model change.
+        assert_eq!(checked, 83, "expected every captured edit to be checked");
+    }
+
+    /// Capture 05's model change, spelled out.
+    ///
+    /// The frame test above proves the bytes match; this names what they mean,
+    /// because the one thing about op 40 that is easy to get wrong is silent.
+    /// `PodGo.sym[253]` is `HD2_PitchDualPitchMono` — the model the capture is
+    /// named after — while `PodGo.sym[40]` is an amp. Reading key 100 as the
+    /// model id, as `podgo-write-protocol.md` once did, would have sent that
+    /// amp's id as the opcode.
+    #[test]
+    fn a_model_change_names_the_model_in_the_nested_key_25() {
+        let edits = edits_in("05-model-change(pitch-wham-to-dual-pitch-in-slot3).txt");
+        let models: Vec<Cmd> = edits
+            .iter()
+            .filter(|(_, _, op, _)| *op == 40)
+            .map(|(_, _, _, cmd)| *cmd)
+            .collect();
+        assert_eq!(models, vec![Cmd::Model { slot: 3, model_id: 253 }]);
+
+        // And that id is the model the capture's filename claims.
+        let dual_pitch = crate::config::model_index_for_id(253).expect("id 253 is known");
+        assert_eq!(crate::config::ALL_MODELS[dual_pitch].name, "Dual Pitch");
+    }
+
+    /// A model changed on the device is op 49 naming a block and saying nothing
+    /// else about it — the same op a bypass uses, told apart by its payload.
+    ///
+    /// The distinction matters in both directions: decode this as a parameter
+    /// and a nonsense value lands on a slider; decode a *focus* (op 39, which
+    /// names a block just the same way) as this, and selecting a block on the
+    /// pedal triggers a preset re-read every time.
+    #[test]
+    fn a_model_change_decodes_as_a_block_change() {
+        let events = events_in("05-model-change(pitch-wham-to-dual-pitch-in-slot3).txt");
+        let changed: Vec<u8> = events
+            .iter()
+            .filter_map(|e| match e {
+                Event::BlockChanged { slot } => Some(*slot),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(changed, vec![3], "capture 05 changes block 3's model");
+
+        // The focus in the same capture must not read as a change.
+        assert!(
+            events.iter().any(|e| matches!(e, Event::Other { op: 39 })),
+            "the block-selected report should stay undecoded: {events:?}"
+        );
+        // Nor should the bypass capture's op 49 turn into one.
+        let bypass = events_in("02-bypass-toggle(pitch wham-3rd block).txt");
+        assert!(
+            bypass.iter().all(|e| !matches!(e, Event::BlockChanged { .. })),
+            "a bypass is op 49 too, but carries key 59: {bypass:?}"
+        );
     }
 
     /// The focus frame we send must be the editor's, byte for byte.

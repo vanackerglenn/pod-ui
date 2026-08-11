@@ -91,6 +91,54 @@ impl Interface for PodGoInterface {
 /// Which block the params panel is currently showing.
 type Focus = Rc<RefCell<String>>;
 
+/// The single panel every chain position shares.
+///
+/// One set of widgets serves all ten blocks; selecting a position re-points
+/// them rather than building ten panels. Everything the re-pointing needs
+/// travels together so the closures that do it take one clone instead of nine.
+#[derive(Clone)]
+struct Panel {
+    pbox: gtk::Box,
+    /// The kind of block. Changing it lists that category's models and nothing
+    /// more — see [`Panel::list_models`].
+    category: gtk::ComboBoxText,
+    model: gtk::ComboBoxText,
+    enable: gtk::CheckButton,
+    title: gtk::Label,
+    /// Which [`config::ALL_MODELS`] entry each row of the model combo names.
+    /// The model combo holds one category at a time, so its own row numbers
+    /// mean nothing on their own.
+    listed: Rc<RefCell<Vec<usize>>>,
+    setters: Rc<RefCell<Vec<Option<Setter>>>>,
+    /// Set while the code, rather than the user, is moving a widget. Every
+    /// handler below returns early on it — otherwise re-pointing the panel at a
+    /// block would read as editing it.
+    updating: Rc<Cell<bool>>,
+    focus: Focus,
+}
+
+impl Panel {
+    /// Fill the model combo with one category's models.
+    ///
+    /// `select` is an index into [`config::ALL_MODELS`]; when it isn't among
+    /// them the combo is left with nothing active, which is how choosing a
+    /// category presents itself — the block still holds what it held, and the
+    /// user has yet to say what to put there instead.
+    ///
+    /// The caller must hold `updating`: this moves widgets.
+    fn list_models(&self, category: &str, select: Option<usize>) {
+        let listed = config::models_in_category(category);
+        self.model.remove_all();
+        for &i in &listed {
+            self.model.append_text(&config::ALL_MODELS[i].name);
+        }
+        let active = select.and_then(|s| listed.iter().position(|&i| i == s));
+        self.model.set_active(active.map(|i| i as u32));
+        self.model.set_sensitive(!listed.is_empty());
+        *self.listed.borrow_mut() = listed;
+    }
+}
+
 /// The chain, as the ten positions the device runs in order.
 ///
 /// Position *is* identity here: `slot3` is the third block, whatever kind of
@@ -110,15 +158,25 @@ fn wire_chain(
     controller: Arc<Mutex<Controller>>, objs: &ObjectList, callbacks: &mut Callbacks,
 ) -> anyhow::Result<()> {
     let row = objs.ref_by_name::<gtk::Box>("chain_row")?;
-    let pbox = objs.ref_by_name::<gtk::Box>("block_params")?;
-    let combo = objs.ref_by_name::<gtk::ComboBoxText>("block_model")?;
-    let enable = objs.ref_by_name::<gtk::CheckButton>("block_enable")?;
-    let title = objs.ref_by_name::<gtk::Label>("block_title")?;
-
-    let focus: Focus = Rc::new(RefCell::new(config::slot_prefix(1)));
-    let setters: Rc<RefCell<Vec<Option<Setter>>>> = Rc::new(RefCell::new(vec![]));
-    let updating = Rc::new(Cell::new(false));
+    let panel = Panel {
+        pbox: objs.ref_by_name::<gtk::Box>("block_params")?,
+        category: objs.ref_by_name::<gtk::ComboBoxText>("block_category")?,
+        model: objs.ref_by_name::<gtk::ComboBoxText>("block_model")?,
+        enable: objs.ref_by_name::<gtk::CheckButton>("block_enable")?,
+        title: objs.ref_by_name::<gtk::Label>("block_title")?,
+        listed: Rc::new(RefCell::new(vec![])),
+        setters: Rc::new(RefCell::new(vec![])),
+        updating: Rc::new(Cell::new(false)),
+        focus: Rc::new(RefCell::new(config::slot_prefix(1))),
+    };
     let buttons: Rc<RefCell<Vec<(String, gtk::ToggleButton)>>> = Rc::new(RefCell::new(vec![]));
+
+    // The categories never change, so the combo is filled once.
+    panel.updating.set(true);
+    for c in config::CATEGORIES.iter() {
+        panel.category.append_text(c);
+    }
+    panel.updating.set(false);
 
     // --- the chain row -----------------------------------------------------
     for (prefix, label) in chain_slots() {
@@ -136,57 +194,80 @@ fn wire_chain(
     // Clicking a block focuses it. `show_block` does the actual repointing.
     for (prefix, button) in buttons.borrow().iter() {
         let (prefix, controller) = (prefix.clone(), controller.clone());
-        let (focus, setters, updating) = (focus.clone(), setters.clone(), updating.clone());
-        let (pbox, combo, enable, title) =
-            (pbox.clone(), combo.clone(), enable.clone(), title.clone());
+        let panel = panel.clone();
         let buttons = buttons.clone();
         button.connect_clicked(move |b| {
-            if updating.get() {
+            if panel.updating.get() {
                 return;
             }
             if !b.is_active() {
                 // Re-clicking the active block keeps it selected.
-                updating.set(true);
+                panel.updating.set(true);
                 b.set_active(true);
-                updating.set(false);
+                panel.updating.set(false);
                 return;
             }
-            *focus.borrow_mut() = prefix.clone();
+            *panel.focus.borrow_mut() = prefix.clone();
             let ctrl = controller.lock().unwrap();
-            show_block(&prefix, &ctrl, &controller, &pbox, &combo, &enable, &title,
-                       &setters, &updating);
+            show_block(&prefix, &ctrl, &controller, &panel);
             drop(ctrl);
             // Untoggle the others.
-            updating.set(true);
+            panel.updating.set(true);
             for (p, other) in buttons.borrow().iter() {
                 other.set_active(*p == prefix);
             }
-            updating.set(false);
+            panel.updating.set(false);
+        });
+    }
+
+    // --- category combo -> which models the model combo offers --------------
+    //
+    // Deliberately does *not* change the block. Picking "Delay" says what kind
+    // of thing you are looking for, not that any particular delay should be
+    // loaded — and since every model change costs the block's settings, one
+    // triggered by browsing would be an expensive surprise. The block changes
+    // when a model is chosen, below.
+    {
+        let panel_cb = panel.clone();
+        panel.category.connect_changed(move |c| {
+            if panel_cb.updating.get() {
+                return;
+            }
+            let Some(category) = c.active().and_then(|i| config::CATEGORIES.get(i as usize))
+            else {
+                return;
+            };
+            panel_cb.updating.set(true);
+            panel_cb.list_models(category, None);
+            panel_cb.updating.set(false);
         });
     }
 
     // --- model combo -> the focused block's select -------------------------
     {
-        let (controller, focus, updating) = (controller.clone(), focus.clone(), updating.clone());
-        combo.connect_changed(move |c| {
-            if updating.get() {
+        let (controller, panel_cb) = (controller.clone(), panel.clone());
+        panel.model.connect_changed(move |c| {
+            if panel_cb.updating.get() {
                 return;
             }
-            if let Some(i) = c.active() {
-                let name = format!("{}_select", focus.borrow());
-                controller.lock().unwrap().set(&name, i as u16, StoreOrigin::UI);
-            }
+            let Some(row) = c.active() else { return };
+            // Copied out before the controller is touched: setting the value
+            // runs the callbacks that rebuild this very list.
+            let index = panel_cb.listed.borrow().get(row as usize).copied();
+            let Some(index) = index else { return };
+            let name = format!("{}_select", panel_cb.focus.borrow());
+            controller.lock().unwrap().set(&name, index as u16, StoreOrigin::UI);
         });
     }
 
     // --- enable switch -> the focused block's enable ------------------------
     {
-        let (controller, focus, updating) = (controller.clone(), focus.clone(), updating.clone());
-        enable.connect_toggled(move |c| {
-            if updating.get() {
+        let (controller, panel_cb) = (controller.clone(), panel.clone());
+        panel.enable.connect_toggled(move |c| {
+            if panel_cb.updating.get() {
                 return;
             }
-            let name = format!("{}_enable", focus.borrow());
+            let name = format!("{}_enable", panel_cb.focus.borrow());
             let mut ctrl = controller.lock().unwrap();
             if ctrl.get_config(&name).is_some() {
                 ctrl.set(&name, if c.is_active() { 1 } else { 0 }, StoreOrigin::UI);
@@ -206,9 +287,7 @@ fn wire_chain(
             .unwrap();
         let (prefix_cb, label_cb) = (prefix.clone(), label.clone());
 
-        let (focus, setters, updating) = (focus.clone(), setters.clone(), updating.clone());
-        let (pbox, combo, enable, title) =
-            (pbox.clone(), combo.clone(), enable.clone(), title.clone());
+        let panel = panel.clone();
         let arc = controller.clone();
         let mut b = LogicBuilder::new(controller.clone(), objs.clone(), callbacks);
         b.on(&format!("{prefix}_select")).run(move |value, ctrl, _| {
@@ -221,9 +300,8 @@ fn wire_chain(
                 l.set_tooltip_text(Some(&format!("Position {label_cb}: {model}")));
                 l.set_sensitive(model != config::EMPTY_MODEL);
             }
-            if *focus.borrow() == prefix_cb {
-                show_block(&prefix_cb, ctrl, &arc, &pbox, &combo, &enable, &title,
-                           &setters, &updating);
+            if *panel.focus.borrow() == prefix_cb {
+                show_block(&prefix_cb, ctrl, &arc, &panel);
             }
         });
     }
@@ -231,14 +309,14 @@ fn wire_chain(
     // Param values: push into the widget only while that block is on screen.
     for (prefix, _) in chain_slots() {
         for k in 1..=MAX_FX_PARAMS {
-            let (focus, setters) = (focus.clone(), setters.clone());
+            let panel = panel.clone();
             let prefix_cb = prefix.clone();
             let mut b = LogicBuilder::new(controller.clone(), objs.clone(), callbacks);
             b.on(&format!("{prefix}_param{k}")).run(move |value, _, _| {
-                if *focus.borrow() != prefix_cb {
+                if *panel.focus.borrow() != prefix_cb {
                     return;
                 }
-                if let Some(Some(set)) = setters.borrow().get(k - 1) {
+                if let Some(Some(set)) = panel.setters.borrow().get(k - 1) {
                     set(value);
                 }
             });
@@ -248,84 +326,74 @@ fn wire_chain(
 
     // Enable state of the focused block.
     for (prefix, _) in chain_slots() {
-        let (focus, updating, enable) = (focus.clone(), updating.clone(), enable.clone());
+        let panel = panel.clone();
         let prefix_cb = prefix.clone();
         let mut b = LogicBuilder::new(controller.clone(), objs.clone(), callbacks);
         b.on(&format!("{prefix}_enable")).run(move |value, _, _| {
-            if *focus.borrow() != prefix_cb {
+            if *panel.focus.borrow() != prefix_cb {
                 return;
             }
-            updating.set(true);
-            enable.set_active(value > 0);
-            updating.set(false);
+            panel.updating.set(true);
+            panel.enable.set_active(value > 0);
+            panel.updating.set(false);
         });
     }
 
     // Show the first block to start with.
     {
         let ctrl = controller.lock().unwrap();
-        show_block(&config::slot_prefix(1), &ctrl, &controller, &pbox, &combo, &enable,
-                   &title, &setters, &updating);
+        show_block(&config::slot_prefix(1), &ctrl, &controller, &panel);
     }
     if let Some((_, b)) = buttons.borrow().first() {
-        updating.set(true);
+        panel.updating.set(true);
         b.set_active(true);
-        updating.set(false);
+        panel.updating.set(false);
     }
 
     Ok(())
 }
 
-/// Point the shared panel at `prefix`: fill the model combo with that block's
-/// models, select the current one, mirror its enable state, and rebuild the
-/// param widgets from the selected model's spec.
+/// Point the shared panel at `prefix`: show the block's category and model,
+/// mirror its enable state, and rebuild the param widgets from the selected
+/// model's spec.
+///
+/// The category is view state only — no controller value holds it. It is
+/// whatever the block's current model belongs to, so a preset load, a change
+/// made on the pedal and a click on another position all set it without
+/// anything extra to keep in step.
 ///
 /// `ctrl` is an already-locked controller (LogicBuilder callbacks hand one
 /// over); `arc` is for the new widgets' own edit handlers. Never re-lock `arc`
 /// here — that deadlocks.
-#[allow(clippy::too_many_arguments)]
-fn show_block(
-    prefix: &str,
-    ctrl: &Controller,
-    arc: &Arc<Mutex<Controller>>,
-    pbox: &gtk::Box,
-    combo: &gtk::ComboBoxText,
-    enable: &gtk::CheckButton,
-    title: &gtk::Label,
-    setters: &Rc<RefCell<Vec<Option<Setter>>>>,
-    updating: &Rc<Cell<bool>>,
-) {
+fn show_block(prefix: &str, ctrl: &Controller, arc: &Arc<Mutex<Controller>>, panel: &Panel) {
     let models: &[config::FxModel] = &config::ALL_MODELS;
     let selected = ctrl.get(&format!("{prefix}_select")).unwrap_or(0) as usize;
 
     let slot = prefix.trim_start_matches("slot");
     let what = models.get(selected).map(|m| m.name.as_str()).unwrap_or(config::EMPTY_MODEL);
-    title.set_text(&format!("Position {slot} — {what}"));
+    panel.title.set_text(&format!("Position {slot} — {what}"));
 
-    updating.set(true);
-    combo.remove_all();
-    for m in models {
-        combo.append_text(&m.name);
-    }
-    if selected < models.len() {
-        combo.set_active(Some(selected as u32));
-    }
-    // A block with a single fixed model has nothing to choose.
-    combo.set_sensitive(models.len() > 1);
+    panel.updating.set(true);
+    // An unfilled position belongs to no category, so both combos come up
+    // blank: there is nothing to show and everything to choose from.
+    let category = models.get(selected).map(|m| m.category).unwrap_or("");
+    let at = config::CATEGORIES.iter().position(|c| *c == category);
+    panel.category.set_active(at.map(|i| i as u32));
+    panel.list_models(category, Some(selected));
 
     let enable_name = format!("{prefix}_enable");
     match ctrl.get_config(&enable_name) {
         Some(_) => {
-            enable.set_sensitive(true);
-            enable.set_active(ctrl.get(&enable_name).unwrap_or(0) > 0);
+            panel.enable.set_sensitive(true);
+            panel.enable.set_active(ctrl.get(&enable_name).unwrap_or(0) > 0);
         }
         None => {
             // Blocks that can't be bypassed (Cab, Volume) have no enable control.
-            enable.set_sensitive(false);
-            enable.set_active(true);
+            panel.enable.set_sensitive(false);
+            panel.enable.set_active(true);
         }
     }
-    updating.set(false);
+    panel.updating.set(false);
 
     // Volume and FX Loop are mostly hardware — the pedal position, a routing
     // send — but the device does expose their few params (Volume: Pedal +
@@ -333,7 +401,7 @@ fn show_block(
     // get the same panel as everything else.
     let empty = crate::model::ParamSpec::default();
     let spec = models.get(selected).map(|m| &m.params).unwrap_or(&empty);
-    *setters.borrow_mut() = rebuild_params(prefix, pbox, spec, arc, ctrl);
+    *panel.setters.borrow_mut() = rebuild_params(prefix, &panel.pbox, spec, arc, ctrl);
 }
 
 /// Build one param row (label + a widget chosen by the param's kind) bound to
@@ -491,7 +559,10 @@ mod tests {
     #[test]
     fn glade_provides_every_widget_wire_chain_looks_up() {
         let glade = include_str!("pod-go.glade");
-        for widget in ["chain_row", "block_params", "block_model", "block_enable", "block_title"] {
+        for widget in [
+            "chain_row", "block_params", "block_category", "block_model", "block_enable",
+            "block_title",
+        ] {
             let prop = format!("<property name=\"name\">{widget}</property>");
             assert!(
                 glade.contains(&prop),
@@ -517,5 +588,59 @@ mod tests {
             );
         }
         assert!(!config::ALL_MODELS.is_empty());
+    }
+
+    /// Whatever a block currently holds can be found in its own category's
+    /// list.
+    ///
+    /// This is the contract between the two combos: `show_block` sets the
+    /// category from the model and then asks `list_models` to select that model
+    /// within it. A model whose category doesn't list it would leave the model
+    /// combo blank on a block that plainly holds something — and picking any
+    /// entry to make the blank go away would change the patch.
+    #[test]
+    fn every_model_is_selectable_within_its_own_category() {
+        for (i, m) in config::ALL_MODELS.iter().enumerate().skip(1) {
+            let listed = config::models_in_category(m.category);
+            assert!(
+                listed.contains(&i),
+                "{} / {} is not in its own category's list",
+                m.category, m.name
+            );
+        }
+        // And the empty entry belongs to none of them, so an unfilled position
+        // shows both combos blank rather than pretending to hold something.
+        assert!(
+            config::CATEGORIES.iter().all(|c| !config::models_in_category(c).contains(&0)),
+            "(empty) must not appear in a category"
+        );
+    }
+
+    /// A real patch's blocks each land in a category the panel offers.
+    #[test]
+    fn a_captured_patch_shows_a_category_for_every_position() {
+        use std::sync::{Arc, Mutex};
+        use pod_core::store::Store;
+
+        let controller = Arc::new(Mutex::new(Controller::new(config::CONFIG.controls.clone())));
+        let data = include_bytes!("../tests/fixtures/a30-fawn-brt.preset.bin");
+        let preset = crate::preset_parser::parse_preset_data(data);
+        crate::handler::sync_controller_from_preset(&controller, &preset);
+
+        let ctrl = controller.lock().unwrap();
+        let mut seen: Vec<&str> = vec![];
+        for slot in 1..=config::CHAIN_SLOTS {
+            let i = ctrl.get(&format!("{}_select", config::slot_prefix(slot))).unwrap() as usize;
+            let m = &config::ALL_MODELS[i];
+            assert!(
+                config::CATEGORIES.contains(&m.category),
+                "position {slot} ({}) has category {:?}, which the combo never offers",
+                m.name, m.category
+            );
+            seen.push(m.category);
+        }
+        // The patch is one of each fixed block plus four effects, so the
+        // categories are a real spread rather than one repeated.
+        assert!(seen.contains(&"Amp") && seen.contains(&"Cab") && seen.contains(&"EQ"));
     }
 }

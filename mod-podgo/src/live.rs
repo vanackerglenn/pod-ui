@@ -68,6 +68,11 @@ pub fn wire_writes(
         b.on(&format!("{prefix}_enable"))
             .from(Origin::UI)
             .run(move |value, _, _| write_bypass(slot, value > 0));
+
+        let mut b = LogicBuilder::new(controller.clone(), objs.clone(), callbacks);
+        b.on(&format!("{prefix}_select"))
+            .from(Origin::UI)
+            .run(move |value, ctrl, _| write_model(slot, value as usize, ctrl));
     }
 
     Ok(())
@@ -106,6 +111,44 @@ fn write_param(slot: usize, k: usize, value: u16, ctrl: &mut Controller) {
 
     crate::handler::mark_written(device_slot, index, ordinary);
     crate::device::set_param(device_slot, index, ordinary, wire);
+}
+
+/// Put a different model in a block.
+///
+/// Unlike a parameter or a bypass, this changes what the block *is*: every
+/// parameter is replaced by the new model's defaults, which only the device
+/// knows. So the values held here are cleared straight away — leaving them
+/// would show the old model's numbers under the new model's labels — and
+/// [`crate::handler`] re-reads the patch when the device confirms the change.
+fn write_model(slot: usize, model_index: usize, ctrl: &mut Controller) {
+    let Some(device_slot) = crate::handler::device_slot(slot) else {
+        debug!("Pod Go: position {slot} is not in the current chain, not writing");
+        return;
+    };
+    let Some(model) = config::ALL_MODELS.get(model_index) else { return };
+    let Some(id) = model.id else {
+        // Index 0, `(empty)`. POD Go has no "no model" id — `PodGo.sym` has an
+        // entry for all 627 models and none for the absence of one — so a block
+        // cannot be emptied from here. Reaching this means the preset sync set
+        // the selector rather than the user, or someone added a way to pick it.
+        debug!("Pod Go: position {slot} has no model to send ({})", model.name);
+        return;
+    };
+    info!(
+        "Pod Go: write position {slot} (block {device_slot}) model = {} (id {id}, {})",
+        model.name, model.category
+    );
+
+    // `Origin::NONE`, the same origin a preset load uses: these values come
+    // from nobody. It also keeps them off the wire — `write_param` only fires
+    // on `Origin::UI` — which matters, because a model change that also sent
+    // twelve parameter writes would be setting the *old* model's parameters on
+    // the new one.
+    let prefix = config::slot_prefix(slot);
+    for k in 1..=MAX_FX_PARAMS {
+        ctrl.set(&format!("{prefix}_param{k}"), 0, Origin::NONE.into());
+    }
+    crate::device::set_model(device_slot, id);
 }
 
 /// Switch a block on or off.

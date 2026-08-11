@@ -32,6 +32,13 @@ impl Handler for PodGoHandler {
             } else {
                 warn!("No cached preset names available");
             }
+            // The sink runs on the connection's reader thread, which is a plain
+            // OS thread with no runtime of its own. Anything it wants to do
+            // asynchronously — the resync a model change needs — has to be
+            // handed back here.
+            *RUNTIME.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(tokio::runtime::Handle::current());
+
             // Open the connection that stays open, *after* the name fetch:
             // both claim USB interface 0, and from here on this owns it.
             // Changes the device makes on its own arrive through the sink.
@@ -363,6 +370,92 @@ fn is_our_echo(slot: u8, index: u8, ordinary: bool) -> bool {
     })
 }
 
+/// The runtime the reader thread hands asynchronous work back to.
+///
+/// Set once, while `new_device_handler`'s task is running — so it is available
+/// before the connection whose reader thread uses it is opened.
+static RUNTIME: Mutex<Option<tokio::runtime::Handle>> = Mutex::new(None);
+
+/// A pending re-read of the edit buffer, and whether anything is waiting to
+/// perform it.
+struct Resync {
+    /// The earliest moment the read should happen. Pushed back by every further
+    /// report, so a burst becomes one read.
+    due: Option<std::time::Instant>,
+    running: bool,
+}
+
+static RESYNC: Mutex<Resync> = Mutex::new(Resync { due: None, running: false });
+
+/// How long to wait for a block change to settle before reading the preset.
+///
+/// Turning the model knob on the pedal walks through models one at a time, each
+/// reported separately; a preset read is about 4 kB over the same channel the
+/// reports arrive on. Waiting for quiet turns a spin through twenty models into
+/// one read of the model it stopped at.
+const RESYNC_QUIET: Duration = Duration::from_millis(250);
+
+/// Re-read the edit buffer, once, after things go quiet.
+///
+/// A model change is the one edit that cannot be applied incrementally: every
+/// parameter of the block is replaced by the new model's defaults, and neither
+/// the x2 report nor anything else on the wire carries them. Both directions
+/// end up here — the device reporting its own change, and the writer confirming
+/// ours — and coalesce into a single read.
+fn request_resync(controller: &Arc<Mutex<Controller>>, why: &'static str) {
+    {
+        let mut r = RESYNC.lock().unwrap_or_else(|e| e.into_inner());
+        r.due = Some(std::time::Instant::now() + RESYNC_QUIET);
+        if r.running {
+            return;
+        }
+        r.running = true;
+    }
+
+    let handle = RUNTIME.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let Some(handle) = handle else {
+        // Only reachable if a report arrives before the device handler has
+        // started, which nothing currently allows. Say so rather than leave the
+        // panel quietly stale.
+        RESYNC.lock().unwrap_or_else(|e| e.into_inner()).running = false;
+        warn!("Pod Go: {why} needs a re-read, but there is no runtime to do it on");
+        return;
+    };
+
+    let controller = controller.clone();
+    handle.spawn(async move {
+        loop {
+            let due = RESYNC.lock().unwrap_or_else(|e| e.into_inner()).due;
+            match due {
+                Some(due) => {
+                    // `saturating_duration_since`, not `due - now`: the deadline
+                    // can pass between reading it and subtracting, and `Instant`
+                    // subtraction panics rather than saturating.
+                    let wait = due.saturating_duration_since(std::time::Instant::now());
+                    if !wait.is_zero() {
+                        // More reports are still arriving; let them settle.
+                        tokio::time::sleep(wait).await;
+                        continue;
+                    }
+                    RESYNC.lock().unwrap_or_else(|e| e.into_inner()).due = None;
+                    refresh_from_device(controller.clone(), Duration::ZERO, why).await;
+                }
+                None => {
+                    // Checked and cleared under one lock, so a report that
+                    // arrives now either sees `running` still set (and this
+                    // loop picks it up) or spawns its own waiter.
+                    let mut r = RESYNC.lock().unwrap_or_else(|e| e.into_inner());
+                    if r.due.is_some() {
+                        continue;
+                    }
+                    r.running = false;
+                    break;
+                }
+            }
+        }
+    });
+}
+
 /// Apply something the device did to the UI.
 ///
 /// Runs on the connection's reader thread. The value is stored with
@@ -387,6 +480,16 @@ fn apply_device_event(controller: &Arc<Mutex<Controller>>, event: crate::device:
             // block shows the opposite of the pedal, this is the line.
             let mut ctrl = controller.lock().unwrap();
             ctrl.set(&name, u16::from(enabled), MIDI.into());
+            return;
+        }
+        crate::device::Event::BlockChanged { slot } => {
+            // Which model it now holds is not in the report, so there is
+            // nothing to apply — only something to go and find out.
+            info!(
+                "Pod Go: block {slot} (position {:?}) changed model; re-reading the patch",
+                ui_slot(slot)
+            );
+            request_resync(controller, "a model change");
             return;
         }
         crate::device::Event::Other { op } => {

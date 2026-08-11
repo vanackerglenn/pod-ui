@@ -57,6 +57,19 @@ pub const PARAM_CARRIER: u16 = 10000;
 /// Built from [`crate::models_db`], whose id table is `PodGo.sym`. The fixed
 /// blocks use the same `FxModel` shape as the four assignable FX slots so they
 /// can share the dynamic param-widget machinery in `module.rs`.
+///
+/// # One entry per wire id
+///
+/// These rows used to be keyed by display name, several ids collapsing into
+/// one. That was tenable while the UI only read — the id still found *a* row —
+/// but it is wrong in both directions. Reading, `Sweep Echo` is two models (the
+/// HD2 and the DL4) with different parameter lists, so a preset holding one of
+/// them laid out its sliders from the other's spec. Writing, a row naming two
+/// ids cannot say which to send, and the seven `EQ` / `EQ_STATIC` pairs differ
+/// exactly by which *block* accepts them.
+///
+/// So: one row per id, and [`disambiguate`] makes the twelve colliding names
+/// tell themselves apart.
 fn block_models(categories: &[&'static str]) -> Vec<FxModel> {
     // Index 0 is always "no model here". Without it an unfilled block falls
     // back to whatever sorts first in its category — which is why empty slots
@@ -64,32 +77,109 @@ fn block_models(categories: &[&'static str]) -> Vec<FxModel> {
     let mut v: Vec<FxModel> = vec![FxModel {
         name: EMPTY_MODEL.to_string(),
         category: "",
-        ids: vec![],
+        id: None,
         params: ParamSpec::default(),
     }];
-    let mut by_name: HashMap<String, usize> = HashMap::new();
     let all = categories.is_empty();
+    let mut symbols: Vec<&str> = vec![""];
     for (id, m) in crate::models_db::DB.entries_by_id() {
         if !all && !categories.contains(&m.category) {
             continue;
         }
-        // One row per display name, but keep every id that leads to it so no
-        // preset block can fail to match.
-        match by_name.get(&m.name) {
-            Some(&i) => v[i].ids.push(id),
-            None => {
-                by_name.insert(m.name.clone(), v.len());
-                v.push(FxModel {
-                    name: m.name.clone(),
-                    category: m.category,
-                    ids: vec![id],
-                    params: m.spec.clone(),
-                });
-            }
-        }
+        symbols.push(&m.symbolic_id);
+        v.push(FxModel {
+            name: m.name.clone(),
+            category: m.category,
+            id: Some(id),
+            params: m.spec.clone(),
+        });
     }
+    disambiguate(&mut v, &symbols);
     v[1..].sort_by(|a, b| a.name.cmp(&b.name));
     v
+}
+
+/// Give every model in a category a name of its own.
+///
+/// Twelve pairs share a display name with a sibling in the same category, and
+/// Line 6's data is the reason for each: the seven `HD2_EQ_STATIC_*` models
+/// duplicate the FX EQs for the dedicated EQ block, the DL4 delays duplicate
+/// their HD2 namesakes, `HD2_PreampLine62204ModV2` duplicates the model it
+/// revises, and `HD2_CabMicIr_2x12MatchG25` is simply given "2x12 Match H30"
+/// as its name — its sibling's.
+///
+/// The tag is derived rather than curated, so a firmware data update that adds
+/// another pair is handled without editing a table: split both symbolic ids
+/// into tokens, keep only those a sibling doesn't have, and drop what the row
+/// already says (its category, and words of its own name). What remains is what
+/// actually distinguishes them — `STATIC`, `DL4`, `V2`, `G25`.
+fn disambiguate(models: &mut [FxModel], symbols: &[&str]) {
+    let mut by_key: HashMap<(&str, String), Vec<usize>> = HashMap::new();
+    for (i, m) in models.iter().enumerate().skip(1) {
+        by_key.entry((m.category, m.name.clone())).or_default().push(i);
+    }
+
+    for (_, group) in by_key.into_iter().filter(|(_, g)| g.len() > 1) {
+        let tokens: Vec<Vec<String>> = group.iter().map(|&i| tokens_of(symbols[i])).collect();
+        let mut tags: Vec<String> = Vec::with_capacity(group.len());
+        for (n, &i) in group.iter().enumerate() {
+            let own: Vec<&str> = tokens[n]
+                .iter()
+                .filter(|t| {
+                    // Shared with every sibling: says nothing about which is which.
+                    !tokens.iter().enumerate().all(|(o, other)| o == n || other.contains(t))
+                        // Already on screen, in the category column or the name.
+                        && !models[i].category.eq_ignore_ascii_case(t)
+                        && !models[i].name.split_whitespace().any(|w| w.eq_ignore_ascii_case(t))
+                })
+                .map(|t| t.as_str())
+                .collect();
+            tags.push(own.join(" "));
+        }
+        // A tag that came out empty is fine for *one* row of a group — that row
+        // is then "the plain one". Two empty tags would leave the pair as
+        // indistinguishable as before, so fall back to something that cannot
+        // collide.
+        for (n, &i) in group.iter().enumerate() {
+            if tags[n].is_empty() && tags.iter().filter(|t| t.is_empty()).count() < 2 {
+                continue;
+            }
+            let tag = if tags[n].is_empty() {
+                models[i].id.map(|id| format!("#{id}")).unwrap_or_default()
+            } else {
+                tags[n].clone()
+            };
+            let named = format!("{} [{}]", models[i].name, tag);
+            models[i].name = named;
+        }
+    }
+}
+
+/// Split a symbolic id into its words: `HD2_EQ_STATIC_ParametricStereo` becomes
+/// `[HD2, EQ, STATIC, Parametric, Stereo]`.
+///
+/// Underscores separate, and so does a case change — but only where it starts a
+/// new word. `EQParametric` breaks between `EQ` and `Parametric` (the last
+/// capital of a run belongs to the word that follows it), while `HD2` and `DL4`
+/// stay whole.
+fn tokens_of(symbolic_id: &str) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    for part in symbolic_id.split('_').filter(|p| !p.is_empty()) {
+        let chars: Vec<char> = part.chars().collect();
+        let mut start = 0;
+        for i in 1..chars.len() {
+            let (prev, c) = (chars[i - 1], chars[i]);
+            let next_lower = chars.get(i + 1).is_some_and(|n| n.is_lowercase());
+            let boundary = c.is_uppercase()
+                && (!prev.is_uppercase() || next_lower);
+            if boundary {
+                out.push(chars[start..i].iter().collect());
+                start = i;
+            }
+        }
+        out.push(chars[start..].iter().collect());
+    }
+    out
 }
 
 /// The amp block. POD Go's amp slot can host a full amp or a preamp.
@@ -172,7 +262,48 @@ pub static ALL_MODELS: Lazy<Vec<FxModel>> = Lazy::new(|| {
 
 /// Resolve a wire model id to its index in [`ALL_MODELS`].
 pub fn model_index_for_id(id: u64) -> Option<usize> {
-    ALL_MODELS.iter().position(|m| m.ids.contains(&id))
+    ALL_MODELS.iter().position(|m| m.id == Some(id))
+}
+
+/// The categories the model dropdown offers, in the order it offers them.
+///
+/// Every position is offered every category. POD Go does have fixed-purpose
+/// positions — one amp, one cab, one FX loop, one preset EQ, a wah and a volume
+/// pedal, plus four free effect blocks — but **nothing in the preset says which
+/// role a position holds**. The current model's category identifies four of
+/// them, and leaves a wah or a volume model ambiguous between its dedicated
+/// block and an effect block hosting the same model.
+///
+/// Rather than guess, the device decides: a model change is followed by a
+/// re-read of the preset, so a model the device declines to load simply doesn't
+/// come back, and the UI returns to what the pedal actually holds.
+pub static CATEGORIES: Lazy<Vec<&'static str>> = Lazy::new(|| {
+    // The order POD Go Edit lists them in, effects first; anything the data
+    // adds later lands after these rather than being dropped.
+    const PREFERRED: &[&str] = &[
+        "Distortion", "Distortion (Legacy)", "Dynamic", "EQ", "Modulation", "Delay",
+        "Reverb", "Pitch/Synth", "Filter", "Wah", "Vol/Pan", "Looper", "Send/Return",
+        "Amp", "Preamp", "Cab", "Cab/IR",
+    ];
+    let mut v: Vec<&'static str> = vec![];
+    for m in ALL_MODELS.iter().skip(1) {
+        if !v.contains(&m.category) {
+            v.push(m.category);
+        }
+    }
+    v.sort_by_key(|c| (PREFERRED.iter().position(|p| p == c).unwrap_or(usize::MAX), *c));
+    v
+});
+
+/// The indices in [`ALL_MODELS`] of every model in `category`, in list order.
+pub fn models_in_category(category: &str) -> Vec<usize> {
+    ALL_MODELS
+        .iter()
+        .enumerate()
+        .skip(1)
+        .filter(|(_, m)| m.category == category)
+        .map(|(i, _)| i)
+        .collect()
 }
 
 // module parameter labels
@@ -338,13 +469,14 @@ pub static DELAY_CONFIG: Lazy<Vec<DelayConfig>> = Lazy::new(|| {
 /// union of all assignable categories, each carrying an (initially generic)
 /// ordered param spec.
 pub struct FxModel {
+    /// What the dropdown shows — the model's own name, plus a `[tag]` when
+    /// another model of the same category shares it. See [`disambiguate`].
     pub name: String,
     pub category: &'static str,
-    /// Every numeric wire id that resolves to this entry. Usually one, but the
-    /// data files list a few models twice under the same name with identical
-    /// params (both "Parametric"s in `eq.models`), and each copy has its own
-    /// id. The UI shows one row; a preset block matches on any of its ids.
-    pub ids: Vec<u64>,
+    /// The numeric wire id: what a preset block carries and what a model change
+    /// sends. `None` only for the `(empty)` entry, which the device has no id
+    /// for and which therefore cannot be selected.
+    pub id: Option<u64>,
     pub params: ParamSpec,
 }
 
@@ -486,6 +618,68 @@ mod tests {
             unresolved.is_empty(),
             "blocks with no param spec: {unresolved:?}"
         );
+    }
+
+    /// A symbolic id splits into the words that distinguish it from a sibling.
+    #[test]
+    fn symbolic_ids_split_into_words() {
+        let t = |s: &str| tokens_of(s).join("|");
+        assert_eq!(t("HD2_EQParametricStereo"), "HD2|EQ|Parametric|Stereo");
+        assert_eq!(t("HD2_EQ_STATIC_ParametricStereo"), "HD2|EQ|STATIC|Parametric|Stereo");
+        // A digit does not split a leading acronym, but does end one.
+        assert_eq!(t("HD2_DL4SweepEchoStereo"), "HD2|DL4|Sweep|Echo|Stereo");
+        assert_eq!(t("HD2_CabMicIr_2x12MatchG25"), "HD2|Cab|Mic|Ir|2x12|Match|G25");
+        assert_eq!(t("HD2_PreampLine62204ModV2"), "HD2|Preamp|Line62204|Mod|V2");
+    }
+
+    /// Every model in a category is nameable on its own.
+    ///
+    /// This is what makes a model change writable at all: the dropdown row the
+    /// user picks has to name exactly one wire id. Twelve pairs of models share
+    /// a name in Line 6's data, and while the UI only read, the collision was
+    /// invisible — the id still found *a* row, just not always the right one.
+    #[test]
+    fn every_model_in_a_category_has_its_own_name() {
+        let mut seen: HashMap<(&str, &str), u64> = HashMap::new();
+        for m in ALL_MODELS.iter().skip(1) {
+            let id = m.id.expect("every model but (empty) has a wire id");
+            if let Some(other) = seen.insert((m.category, m.name.as_str()), id) {
+                panic!("{} / {} names both id {other} and id {id}", m.category, m.name);
+            }
+        }
+        // And the ones that needed a tag say what it is rather than a number.
+        let named = |id: u64| {
+            ALL_MODELS[model_index_for_id(id).expect("known id")].name.as_str()
+        };
+        assert_eq!(named(115), "Parametric");           // HD2_EQParametricStereo
+        assert_eq!(named(472), "Parametric [STATIC]");  // HD2_EQ_STATIC_ParametricStereo
+        assert_eq!(named(85), "Sweep Echo");            // HD2_DelaySweepEchoStereo
+        assert_eq!(named(343), "Sweep Echo [DL4]");     // HD2_DL4SweepEchoStereo
+        assert_eq!(named(279), "Line 6 2204 Mod [V2]"); // HD2_PreampLine62204ModV2
+    }
+
+    /// One row per wire id, so nothing the device can report is unreachable and
+    /// nothing is reachable twice.
+    #[test]
+    fn every_wire_id_has_exactly_one_row() {
+        let ids: Vec<u64> = ALL_MODELS.iter().skip(1).filter_map(|m| m.id).collect();
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), ids.len(), "a wire id appears in two rows");
+        assert_eq!(
+            ids.len(),
+            crate::models_db::DB.entries_by_id().count(),
+            "the catalogue and the id table disagree on how many models exist"
+        );
+    }
+
+    /// The dropdown's categories cover every model.
+    #[test]
+    fn every_model_is_reachable_through_a_category() {
+        let total: usize = CATEGORIES.iter().map(|c| models_in_category(c).len()).sum();
+        assert_eq!(total, ALL_MODELS.len() - 1, "a model belongs to no listed category");
+        assert_eq!(CATEGORIES.first(), Some(&"Distortion"), "effects come first");
     }
 
     #[test]
@@ -735,7 +929,7 @@ mod ui_dump {
     fn an_unfilled_block_reads_as_empty() {
         assert_eq!(ALL_MODELS[0].name, EMPTY_MODEL, "index 0 must be the empty entry");
         assert!(ALL_MODELS[0].params.is_empty(), "the empty entry has no params");
-        assert!(ALL_MODELS[0].ids.is_empty(), "no wire id maps to the empty entry");
+        assert!(ALL_MODELS[0].id.is_none(), "no wire id maps to the empty entry");
     }
 
     /// Every model the device can report resolves, whatever its category.
@@ -779,7 +973,11 @@ mod ui_dump {
         for (slot, expected) in [
             (1usize, "Fassel"), (2, "Volume"), (3, "FX Loop 1"), (4, "Top Secret OD"),
             (5, "A30 Fawn Brt"), (6, "2x12 Blue Bell"), (7, "LA Studio Comp"),
-            (8, "Transistor Tape"), (9, "Room"), (10, "Parametric"),
+            (8, "Transistor Tape"), (9, "Room"),
+            // The dedicated EQ block's Parametric, not the effect block's:
+            // two different models, two different ids, one name in Line 6's
+            // data. Position 10 holds id 472, `HD2_EQ_STATIC_ParametricStereo`.
+            (10, "Parametric [STATIC]"),
         ] {
             let idx = ctrl.get(&format!("{}_select", slot_prefix(slot))).unwrap() as usize;
             assert_eq!(ALL_MODELS[idx].name, expected, "position {slot}");
@@ -809,7 +1007,9 @@ mod ui_dump {
 
         let ctrl = controller.lock().unwrap();
         assert_eq!(ctrl.get("slot3_select"), Some(0), "the unknown block reads empty");
-        for (slot, expected) in [(4usize, "Top Secret OD"), (5, "A30 Fawn Brt"), (10, "Parametric")] {
+        for (slot, expected) in
+            [(4usize, "Top Secret OD"), (5, "A30 Fawn Brt"), (10, "Parametric [STATIC]")]
+        {
             let idx = ctrl.get(&format!("{}_select", slot_prefix(slot))).unwrap() as usize;
             assert_eq!(ALL_MODELS[idx].name, expected, "position {slot} must not shift");
         }
